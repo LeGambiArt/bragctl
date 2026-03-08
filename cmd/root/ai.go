@@ -108,7 +108,7 @@ func mcpSetupCmd() *cobra.Command {
 			}
 
 			mcpBinary := cfg.MCP.Server
-			workdir := "" // use default
+			workdir := config.BaseDir()
 
 			for _, name := range assistants {
 				if err := mcp.Setup(name, s.Path, mcpBinary, workdir); err != nil {
@@ -141,9 +141,9 @@ func launchForSite(cfg *config.Config, assistant ai.Assistant, name string) erro
 		return fmt.Errorf("write context: %w", err)
 	}
 
-	// Set up MCP config
+	// Set up MCP config — what-the-mcp uses bragctl's base dir as workdir
 	mcpBinary := cfg.MCP.Server
-	workdir := "" // use default
+	workdir := config.BaseDir()
 	if err := mcp.Setup(assistant.Name, s.Path, mcpBinary, workdir); err != nil {
 		return fmt.Errorf("mcp setup: %w", err)
 	}

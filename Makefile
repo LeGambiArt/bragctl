@@ -10,7 +10,7 @@ all: build
 # Build the binary
 build:
 	@echo "Building bragctl..."
-	go build -ldflags "$(LDFLAGS)" -o bragctl ./cmd/...
+	go build -ldflags "$(LDFLAGS)" -o bragctl ./cmd
 
 # Run tests
 test:

@@ -31,6 +31,7 @@ with AI assistants (Claude, Cursor, Gemini) via MCP.`,
 	rootCmd.AddCommand(cursorCmd())
 	rootCmd.AddCommand(geminiCmd())
 	rootCmd.AddCommand(mcpSetupCmd())
+	rootCmd.AddCommand(configCmd())
 
 	return rootCmd
 }
@@ -82,6 +83,16 @@ func initCmd() *cobra.Command {
 
 			fmt.Printf("Created site %q at %s\n", s.Name, s.Path)
 			fmt.Printf("Engine: %s\n", s.Engine.Name())
+
+			// Set as default if it's the first site or no default is set
+			if cfg.DefaultSite == "" {
+				cfg.DefaultSite = name
+				if err := config.Save(cfg); err != nil {
+					return fmt.Errorf("save config: %w", err)
+				}
+				fmt.Printf("Set as default site\n")
+			}
+
 			fmt.Println()
 			fmt.Println("To start writing:")
 			fmt.Printf("  bragctl ai %s\n", s.Name)

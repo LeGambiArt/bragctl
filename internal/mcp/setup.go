@@ -29,12 +29,16 @@ func Setup(assistant, sitePath, mcpBinary, workdir string) error {
 		mcpBinary = "what-the-mcp"
 	}
 
+	server := ServerConfig{
+		Command: mcpBinary,
+	}
+	if workdir != "" {
+		server.Args = []string{"--workdir", workdir}
+	}
+
 	cfg := Config{
 		MCPServers: map[string]ServerConfig{
-			"what-the-mcp": {
-				Command: mcpBinary,
-				Args:    []string{"--workdir", workdir},
-			},
+			"what-the-mcp": server,
 		},
 	}
 

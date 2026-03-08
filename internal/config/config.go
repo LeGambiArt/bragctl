@@ -22,16 +22,16 @@ type MCPConfig struct {
 }
 
 // BaseDir returns the bragctl base directory.
-// Uses BRAGAI_HOME env var, falls back to ~/.bragai.
+// Uses BRAGCTL_HOME env var, falls back to ~/.bragctl.
 func BaseDir() string {
-	if dir := os.Getenv("BRAGAI_HOME"); dir != "" {
+	if dir := os.Getenv("BRAGCTL_HOME"); dir != "" {
 		return dir
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ".bragai"
+		return ".bragctl"
 	}
-	return filepath.Join(home, ".bragai")
+	return filepath.Join(home, ".bragctl")
 }
 
 // SitesDir returns the directory where sites are stored.

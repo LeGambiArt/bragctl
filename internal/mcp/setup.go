@@ -21,24 +21,15 @@ type ServerConfig struct {
 }
 
 // Setup writes MCP configuration for an AI assistant at a site directory.
-// The mcpBinary is the path to the what-the-mcp binary.
-// The workdir is the what-the-mcp workdir for --workdir flag.
-func Setup(assistant, sitePath, mcpBinary, workdir string) error {
-	if mcpBinary == "" {
-		// Try to find it in PATH
-		mcpBinary = "what-the-mcp"
-	}
-
-	server := ServerConfig{
-		Command: mcpBinary,
-	}
-	if workdir != "" {
-		server.Args = []string{"--workdir", workdir}
-	}
-
+// command is the what-the-mcp binary path, args are the full argument list
+// (including --workdir and any extras).
+func Setup(assistant, sitePath, command string, args []string) error {
 	cfg := Config{
 		MCPServers: map[string]ServerConfig{
-			"what-the-mcp": server,
+			"what-the-mcp": {
+				Command: command,
+				Args:    args,
+			},
 		},
 	}
 
@@ -87,7 +78,6 @@ func writeGeminiConfig(sitePath string, cfg Config) error {
 		return err
 	}
 
-	// Gemini uses a different format
 	geminiCfg := map[string]any{
 		"mcpServers": cfg.MCPServers,
 	}

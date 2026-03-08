@@ -8,17 +8,48 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Config holds user preferences.
+// Config holds global bragctl preferences.
 type Config struct {
-	DefaultSite   string    `toml:"default_site"`
-	DefaultAI     string    `toml:"default_ai"`
-	DefaultEngine string    `toml:"default_engine"`
-	MCP           MCPConfig `toml:"mcp"`
+	DefaultSite string    `toml:"default_site,omitempty"`
+	MCP         MCPConfig `toml:"mcp,omitempty"`
 }
 
-// MCPConfig holds MCP server settings.
+// MCPConfig describes how to launch what-the-mcp.
 type MCPConfig struct {
-	Server string `toml:"server"` // path to what-the-mcp binary
+	// Command is the path to the what-the-mcp binary.
+	// Default: "what-the-mcp" (from PATH).
+	Command string `toml:"command,omitempty"`
+
+	// Workdir is the what-the-mcp working directory.
+	// Default: same as bragctl BaseDir().
+	Workdir string `toml:"workdir,omitempty"`
+
+	// Args are extra flags passed to what-the-mcp.
+	Args []string `toml:"args,omitempty"`
+}
+
+// MCPCommand returns the resolved what-the-mcp command.
+func (c *Config) MCPCommand() string {
+	if c.MCP.Command != "" {
+		return c.MCP.Command
+	}
+	return "what-the-mcp"
+}
+
+// MCPWorkdir returns the resolved what-the-mcp workdir.
+func (c *Config) MCPWorkdir() string {
+	if c.MCP.Workdir != "" {
+		return c.MCP.Workdir
+	}
+	return BaseDir()
+}
+
+// MCPArgs returns the full argument list for what-the-mcp,
+// including --workdir and any extra configured args.
+func (c *Config) MCPArgs() []string {
+	args := []string{"--workdir", c.MCPWorkdir()}
+	args = append(args, c.MCP.Args...)
+	return args
 }
 
 // BaseDir returns the bragctl base directory.
@@ -46,9 +77,7 @@ func Path() string {
 
 // Load reads the config file. Returns defaults if file doesn't exist.
 func Load() (*Config, error) {
-	cfg := &Config{
-		DefaultEngine: "markdown",
-	}
+	cfg := &Config{}
 
 	data, err := os.ReadFile(Path()) //nolint:gosec // config path from known location
 	if err != nil {

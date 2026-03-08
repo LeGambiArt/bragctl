@@ -23,12 +23,17 @@ func aiCmd() *cobra.Command {
 				return err
 			}
 
-			assistant, err := resolveAssistant(cfg)
+			s, err := resolveSite(cfg, args)
 			if err != nil {
 				return err
 			}
 
-			return launchForSite(cfg, assistant, siteName(args))
+			assistant, err := resolveAssistant(s)
+			if err != nil {
+				return err
+			}
+
+			return launchForSite(cfg, assistant, s)
 		},
 	}
 }
@@ -44,7 +49,11 @@ func claudeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return launchForSite(cfg, ai.Claude, siteName(args))
+			s, err := resolveSite(cfg, args)
+			if err != nil {
+				return err
+			}
+			return launchForSite(cfg, ai.Claude, s)
 		},
 	}
 }
@@ -60,7 +69,11 @@ func cursorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return launchForSite(cfg, ai.Cursor, siteName(args))
+			s, err := resolveSite(cfg, args)
+			if err != nil {
+				return err
+			}
+			return launchForSite(cfg, ai.Cursor, s)
 		},
 	}
 }
@@ -76,7 +89,11 @@ func geminiCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return launchForSite(cfg, ai.Gemini, siteName(args))
+			s, err := resolveSite(cfg, args)
+			if err != nil {
+				return err
+			}
+			return launchForSite(cfg, ai.Gemini, s)
 		},
 	}
 }
@@ -94,24 +111,19 @@ func mcpSetupCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			mgr := site.NewManager(cfg)
 
-			s, err := mgr.Resolve(siteName(args))
+			s, err := resolveSite(cfg, args)
 			if err != nil {
 				return err
 			}
 
-			// Determine which assistants to set up
 			assistants := ai.AssistantNames()
 			if assistant != "" {
 				assistants = []string{assistant}
 			}
 
-			mcpBinary := cfg.MCP.Server
-			workdir := config.BaseDir()
-
 			for _, name := range assistants {
-				if err := mcp.Setup(name, s.Path, mcpBinary, workdir); err != nil {
+				if err := setupMCP(cfg, name, s.Path); err != nil {
 					return fmt.Errorf("mcp setup for %s: %w", name, err)
 				}
 				fmt.Printf("MCP configured for %s at %s\n", name, s.Path)
@@ -128,23 +140,12 @@ func mcpSetupCmd() *cobra.Command {
 	return cmd
 }
 
-func launchForSite(cfg *config.Config, assistant ai.Assistant, name string) error {
-	mgr := site.NewManager(cfg)
-
-	s, err := mgr.Resolve(name)
-	if err != nil {
-		return err
-	}
-
-	// Write/update context file
+func launchForSite(cfg *config.Config, assistant ai.Assistant, s *site.Site) error {
 	if err := ai.WriteContext(assistant, s.Path, s.Name, s.Engine.Name()); err != nil {
 		return fmt.Errorf("write context: %w", err)
 	}
 
-	// Set up MCP config — what-the-mcp uses bragctl's base dir as workdir
-	mcpBinary := cfg.MCP.Server
-	workdir := config.BaseDir()
-	if err := mcp.Setup(assistant.Name, s.Path, mcpBinary, workdir); err != nil {
+	if err := setupMCP(cfg, assistant.Name, s.Path); err != nil {
 		return fmt.Errorf("mcp setup: %w", err)
 	}
 
@@ -152,11 +153,21 @@ func launchForSite(cfg *config.Config, assistant ai.Assistant, name string) erro
 	return ai.Launch(assistant, s.Path)
 }
 
-func resolveAssistant(cfg *config.Config) (ai.Assistant, error) {
-	if cfg.DefaultAI != "" {
-		return ai.ByName(cfg.DefaultAI)
+func setupMCP(cfg *config.Config, assistant, sitePath string) error {
+	return mcp.Setup(assistant, sitePath, cfg.MCPCommand(), cfg.MCPArgs())
+}
+
+// resolveAssistant picks the AI assistant: site preference, then auto-detect.
+func resolveAssistant(s *site.Site) (ai.Assistant, error) {
+	if s.Config.AI != "" {
+		return ai.ByName(s.Config.AI)
 	}
 	return ai.Detect()
+}
+
+func resolveSite(cfg *config.Config, args []string) (*site.Site, error) {
+	mgr := site.NewManager(cfg)
+	return mgr.Resolve(siteName(args))
 }
 
 func completeSiteNames(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {

@@ -31,6 +31,7 @@ type InitOpts struct {
 type Config struct {
 	Title       string `yaml:"title"`
 	Author      string `yaml:"author"`
-	Description string `yaml:"description"`
+	Description string `yaml:"description,omitempty"`
 	Engine      string `yaml:"engine"`
+	AI          string `yaml:"ai,omitempty"` // preferred assistant (claude, cursor, gemini)
 }

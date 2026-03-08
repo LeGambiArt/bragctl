@@ -5,7 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ai"
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/site"
 )
@@ -19,7 +18,6 @@ func configCmd() *cobra.Command {
 	cmd.AddCommand(configShowCmd())
 	cmd.AddCommand(configSetDefaultCmd())
 	cmd.AddCommand(configClearDefaultCmd())
-	cmd.AddCommand(configSetAICmd())
 
 	return cmd
 }
@@ -45,18 +43,10 @@ func configShowCmd() *cobra.Command {
 				fmt.Printf("Default site:   (not set)\n")
 			}
 
-			if cfg.DefaultAI != "" {
-				fmt.Printf("Default AI:     %s\n", cfg.DefaultAI)
-			} else {
-				fmt.Printf("Default AI:     (auto-detect)\n")
-			}
-
-			fmt.Printf("Default engine: %s\n", cfg.DefaultEngine)
-
-			if cfg.MCP.Server != "" {
-				fmt.Printf("MCP server:     %s\n", cfg.MCP.Server)
-			} else {
-				fmt.Printf("MCP server:     what-the-mcp (from PATH)\n")
+			fmt.Printf("MCP command:    %s\n", cfg.MCPCommand())
+			fmt.Printf("MCP workdir:    %s\n", cfg.MCPWorkdir())
+			if len(cfg.MCP.Args) > 0 {
+				fmt.Printf("MCP extra args: %v\n", cfg.MCP.Args)
 			}
 
 			return nil
@@ -76,7 +66,6 @@ func configSetDefaultCmd() *cobra.Command {
 				return err
 			}
 
-			// Verify site exists
 			mgr := site.NewManager(cfg)
 			if _, err := mgr.Resolve(args[0]); err != nil {
 				return fmt.Errorf("site %q not found", args[0])
@@ -106,33 +95,6 @@ func configClearDefaultCmd() *cobra.Command {
 				return err
 			}
 			fmt.Println("Default site cleared")
-			return nil
-		},
-	}
-}
-
-func configSetAICmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "set-ai <assistant>",
-		Short: "Set the default AI assistant",
-		Args:  cobra.ExactArgs(1),
-		ValidArgsFunction: func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-			return ai.AssistantNames(), cobra.ShellCompDirectiveNoFileComp
-		},
-		RunE: func(_ *cobra.Command, args []string) error {
-			if _, err := ai.ByName(args[0]); err != nil {
-				return err
-			}
-
-			cfg, err := config.Load()
-			if err != nil {
-				return err
-			}
-			cfg.DefaultAI = args[0]
-			if err := config.Save(cfg); err != nil {
-				return err
-			}
-			fmt.Printf("Default AI set to %q\n", args[0])
 			return nil
 		},
 	}

@@ -36,6 +36,7 @@ with AI assistants (Claude, Cursor, Gemini) via MCP.`,
 	rootCmd.AddCommand(contextCmd())
 	rootCmd.AddCommand(configCmd())
 	rootCmd.AddCommand(serveCmd())
+	rootCmd.AddCommand(stopCmd())
 
 	return rootCmd
 }
@@ -183,6 +184,7 @@ func listCmd() *cobra.Command {
 func serveCmd() *cobra.Command {
 	var port int
 	var bind string
+	var foreground bool
 
 	cmd := &cobra.Command{
 		Use:               "serve [site-name]",
@@ -198,16 +200,44 @@ func serveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return s.Engine.Serve(cmd.Context(), s.Path, site.ServeOpts{
-				Port: port,
-				Bind: bind,
-			})
+
+			opts := site.ServeOpts{
+				Port:       port,
+				Bind:       bind,
+				Foreground: foreground,
+			}
+
+			if foreground {
+				return s.Engine.Serve(cmd.Context(), s.Path, opts)
+			}
+			return site.StartBackground(s.Name, s.Path, opts)
 		},
 	}
 
-	cmd.Flags().IntVarP(&port, "port", "p", 1313, "Port to serve on")
+	cmd.Flags().IntVarP(&port, "port", "p", 0, "Port to serve on (default: auto-detect from 1313)")
 	cmd.Flags().StringVar(&bind, "bind", "127.0.0.1", "Address to bind to (use 0.0.0.0 for all interfaces)")
+	cmd.Flags().BoolVarP(&foreground, "foreground", "f", false, "Run in foreground (blocking)")
 	return cmd
+}
+
+func stopCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:               "stop [site-name]",
+		Short:             "Stop a running dev server",
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeSiteNames,
+		RunE: func(_ *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+			s, err := resolveSite(cfg, args)
+			if err != nil {
+				return err
+			}
+			return site.StopServer(s.Name, s.Path)
+		},
+	}
 }
 
 func currentUser() string {

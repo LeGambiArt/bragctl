@@ -30,6 +30,9 @@ CLAUDE.md
 GEMINI.md
 .cursorrules
 
+# Server state
+.server.pid
+
 # MCP config
 .mcp.json
 .claude/

@@ -148,13 +148,14 @@ func Detect() (Assistant, error) {
 }
 
 // Launch starts an AI assistant pointed at a site directory.
-func Launch(assistant Assistant, sitePath string) error {
+// Extra args are passed through to the assistant command.
+func Launch(assistant Assistant, sitePath string, extraArgs ...string) error {
 	path, err := exec.LookPath(assistant.Command)
 	if err != nil {
 		return fmt.Errorf("%s not found in PATH", assistant.Command)
 	}
 
-	cmd := exec.Command(path) //nolint:gosec // assistant command from LookPath
+	cmd := exec.Command(path, extraArgs...) //nolint:gosec // assistant command from LookPath
 	cmd.Dir = sitePath
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

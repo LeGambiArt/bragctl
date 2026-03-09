@@ -12,7 +12,9 @@ import (
 )
 
 func aiCmd() *cobra.Command {
-	return &cobra.Command{
+	var resume bool
+
+	cmd := &cobra.Command{
 		Use:               "ai [site-name]",
 		Short:             "Launch the default AI assistant for a site",
 		Args:              cobra.MaximumNArgs(1),
@@ -22,24 +24,26 @@ func aiCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			s, err := resolveSite(cfg, args)
 			if err != nil {
 				return err
 			}
-
 			assistant, err := resolveAssistant(s)
 			if err != nil {
 				return err
 			}
-
-			return launchForSite(cfg, assistant, s)
+			return launchForSite(cfg, assistant, s, resume)
 		},
 	}
+
+	cmd.Flags().BoolVarP(&resume, "resume", "r", false, "Resume previous session")
+	return cmd
 }
 
 func claudeCmd() *cobra.Command {
-	return &cobra.Command{
+	var resume bool
+
+	cmd := &cobra.Command{
 		Use:               "claude [site-name]",
 		Short:             "Launch Claude Code for a site",
 		Args:              cobra.MaximumNArgs(1),
@@ -53,9 +57,12 @@ func claudeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return launchForSite(cfg, ai.Claude, s)
+			return launchForSite(cfg, ai.Claude, s, resume)
 		},
 	}
+
+	cmd.Flags().BoolVarP(&resume, "resume", "r", false, "Resume previous session")
+	return cmd
 }
 
 func cursorCmd() *cobra.Command {
@@ -73,13 +80,15 @@ func cursorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return launchForSite(cfg, ai.Cursor, s)
+			return launchForSite(cfg, ai.Cursor, s, false)
 		},
 	}
 }
 
 func geminiCmd() *cobra.Command {
-	return &cobra.Command{
+	var resume bool
+
+	cmd := &cobra.Command{
 		Use:               "gemini [site-name]",
 		Short:             "Launch Gemini CLI for a site",
 		Args:              cobra.MaximumNArgs(1),
@@ -93,9 +102,12 @@ func geminiCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return launchForSite(cfg, ai.Gemini, s)
+			return launchForSite(cfg, ai.Gemini, s, resume)
 		},
 	}
+
+	cmd.Flags().BoolVarP(&resume, "resume", "r", false, "Resume previous session")
+	return cmd
 }
 
 func mcpSetupCmd() *cobra.Command {
@@ -140,7 +152,7 @@ func mcpSetupCmd() *cobra.Command {
 	return cmd
 }
 
-func launchForSite(cfg *config.Config, assistant ai.Assistant, s *site.Site) error {
+func launchForSite(cfg *config.Config, assistant ai.Assistant, s *site.Site, resume bool) error {
 	if err := ai.WriteContext(assistant, s.Path, s.Name, s.Engine.Name()); err != nil {
 		return fmt.Errorf("write context: %w", err)
 	}
@@ -149,8 +161,13 @@ func launchForSite(cfg *config.Config, assistant ai.Assistant, s *site.Site) err
 		return fmt.Errorf("mcp setup: %w", err)
 	}
 
+	var extraArgs []string
+	if resume {
+		extraArgs = append(extraArgs, "--resume")
+	}
+
 	fmt.Printf("Launching %s for site %q...\n", assistant.Name, s.Name)
-	return ai.Launch(assistant, s.Path)
+	return ai.Launch(assistant, s.Path, extraArgs...)
 }
 
 func setupMCP(cfg *config.Config, assistant, sitePath string) error {

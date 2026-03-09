@@ -30,6 +30,7 @@ func NewManager(cfg *config.Config) *Manager {
 		cfg:     cfg,
 	}
 	mgr.engines["markdown"] = &MarkdownEngine{}
+	mgr.engines["hugo"] = NewHugoEngine(cfg)
 	return mgr
 }
 

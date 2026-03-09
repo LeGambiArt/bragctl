@@ -26,7 +26,7 @@ func TestWriteContext(t *testing.T) {
 	// Check content includes key sections
 	s := string(content)
 	for _, want := range []string{
-		"context.d/",
+		"# Context",
 		"MCP Tools",
 		"Writing Brag Entries",
 		"posts/",
@@ -100,6 +100,82 @@ func TestWriteContextIdempotent(t *testing.T) {
 		if _, err := os.Readlink(linkPath); err != nil {
 			t.Errorf("%s: not a symlink after double write: %v", a.ContextFile, err)
 		}
+	}
+}
+
+func TestWriteContextAppendsEnabledContext(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create context.d with enabled and disabled files
+	ctxDir := filepath.Join(dir, "context.d")
+	if err := os.MkdirAll(ctxDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// Enabled files
+	enabledContent := "# Persona\nI am a helpful assistant."
+	if err := os.WriteFile(filepath.Join(ctxDir, "persona.md"), []byte(enabledContent), 0o644); err != nil { //nolint:gosec // test file
+		t.Fatal(err)
+	}
+
+	// Disabled file (should be skipped)
+	disabledContent := "# Disabled\nThis should not appear."
+	if err := os.WriteFile(filepath.Join(ctxDir, "disabled.md.disabled"), []byte(disabledContent), 0o644); err != nil { //nolint:gosec // test file
+		t.Fatal(err)
+	}
+
+	if err := WriteContext(Claude, dir, "test", "markdown"); err != nil {
+		t.Fatalf("WriteContext: %v", err)
+	}
+
+	// Read the generated file
+	specPath := filepath.Join(dir, aiSpecFile)
+	content, err := os.ReadFile(specPath) //nolint:gosec // test file
+	if err != nil {
+		t.Fatalf("read ai-spec.md: %v", err)
+	}
+
+	s := string(content)
+
+	// Should contain enabled content
+	if !contains(s, enabledContent) {
+		t.Errorf("content missing enabled context: %q", enabledContent)
+	}
+
+	// Should NOT contain disabled content
+	if contains(s, disabledContent) {
+		t.Errorf("content includes disabled context: %q", disabledContent)
+	}
+
+	// Should have the Context header
+	if !contains(s, "# Context") {
+		t.Error("content missing '# Context' header")
+	}
+}
+
+func TestWriteContextNoContextDir(t *testing.T) {
+	dir := t.TempDir()
+	// Don't create context.d directory
+
+	if err := WriteContext(Claude, dir, "test", "markdown"); err != nil {
+		t.Fatalf("WriteContext: %v", err)
+	}
+
+	// Should still work and create ai-spec.md
+	specPath := filepath.Join(dir, aiSpecFile)
+	content, err := os.ReadFile(specPath) //nolint:gosec // test file
+	if err != nil {
+		t.Fatalf("read ai-spec.md: %v", err)
+	}
+
+	if len(content) == 0 {
+		t.Fatal("ai-spec.md is empty")
+	}
+
+	// Should have base template content
+	s := string(content)
+	if !contains(s, "# Context") {
+		t.Error("content missing '# Context' header")
 	}
 }
 

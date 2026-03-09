@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -118,26 +117,14 @@ func loadConfig(sitePath string) (*Config, error) {
 }
 
 func gitInit(dir string) error {
-	cmd := exec.Command("git", "init")
-	cmd.Dir = dir
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	if err := cmd.Run(); err != nil {
+	if err := gitCmd(dir, "init").Run(); err != nil {
 		return fmt.Errorf("git init: %w", err)
 	}
-
-	// Initial commit
-	cmd = exec.Command("git", "add", ".")
-	cmd.Dir = dir
-	if err := cmd.Run(); err != nil {
+	if err := gitCmd(dir, "add", ".").Run(); err != nil {
 		return fmt.Errorf("git add: %w", err)
 	}
-
-	cmd = exec.Command("git", "commit", "-m", "Initial bragctl site")
-	cmd.Dir = dir
-	if err := cmd.Run(); err != nil {
+	if err := gitCmd(dir, "commit", "-m", "Initial bragctl site").Run(); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
-
 	return nil
 }

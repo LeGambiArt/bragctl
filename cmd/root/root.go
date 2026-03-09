@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -50,6 +51,7 @@ func versionCmd(version, buildDate string) *cobra.Command {
 
 func initCmd() *cobra.Command {
 	var engine, title, author, aiPref string
+	var force bool
 
 	cmd := &cobra.Command{
 		Use:   "init <site-name>",
@@ -57,6 +59,18 @@ func initCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
+
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+
+			// Check if site already exists BEFORE prompting
+			sitePath := filepath.Join(config.SitesDir(), name)
+			if _, err := os.Stat(sitePath); err == nil && !force {
+				return fmt.Errorf("site %q already exists at %s (use --force to re-initialize)", name, sitePath)
+			}
+
 			if engine == "" {
 				engine = "markdown"
 			}
@@ -79,10 +93,13 @@ func initCmd() *cobra.Command {
 				aiPref = prompt("AI assistant (claude/cursor/gemini) [auto]: ", "")
 			}
 
-			cfg, err := config.Load()
-			if err != nil {
-				return err
+			// Remove existing site if --force was used
+			if force {
+				if err := os.RemoveAll(sitePath); err != nil {
+					return fmt.Errorf("remove existing site: %w", err)
+				}
 			}
+
 			mgr := site.NewManager(cfg)
 
 			s, err := mgr.Create(context.Background(), site.InitOpts{
@@ -115,13 +132,14 @@ func initCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&engine, "engine", "e", "", "Site engine: markdown (default: markdown)")
+	cmd.Flags().StringVarP(&engine, "engine", "e", "", "Site engine: markdown, hugo (default: markdown)")
 	cmd.Flags().StringVarP(&title, "title", "t", "", "Site title")
 	cmd.Flags().StringVarP(&author, "author", "a", "", "Author name")
 	cmd.Flags().StringVar(&aiPref, "ai", "", "Preferred AI assistant (claude, cursor, gemini)")
+	cmd.Flags().BoolVar(&force, "force", false, "Re-initialize existing site")
 
 	_ = cmd.RegisterFlagCompletionFunc("engine", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-		return []string{"markdown"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"markdown", "hugo"}, cobra.ShellCompDirectiveNoFileComp
 	})
 
 	return cmd

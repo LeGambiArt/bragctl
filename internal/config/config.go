@@ -2,7 +2,9 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
@@ -10,8 +12,24 @@ import (
 
 // Config holds global bragctl preferences.
 type Config struct {
-	DefaultSite string    `toml:"default_site,omitempty"`
-	MCP         MCPConfig `toml:"mcp,omitempty"`
+	DefaultSite string     `toml:"default_site,omitempty"`
+	MCP         MCPConfig  `toml:"mcp,omitempty"`
+	Hugo        HugoConfig `toml:"hugo,omitempty"`
+}
+
+// HugoConfig describes how to find the Hugo binary and theme settings.
+type HugoConfig struct {
+	// Command is an explicit path to the Hugo binary.
+	// Default: resolved via ResolveHugoCommand().
+	Command string `toml:"command,omitempty"`
+
+	// ThemeRepo is the git URL for the Hugo theme.
+	// Default: hugo-book.
+	ThemeRepo string `toml:"theme_repo,omitempty"`
+
+	// ThemeCommit pins the theme to a specific commit.
+	// Default: known-good hugo-book commit.
+	ThemeCommit string `toml:"theme_commit,omitempty"`
 }
 
 // MCPConfig describes how to launch what-the-mcp.
@@ -26,6 +44,21 @@ type MCPConfig struct {
 
 	// Args are extra flags passed to what-the-mcp.
 	Args []string `toml:"args,omitempty"`
+}
+
+// ResolveHugoCommand returns the Hugo binary to use.
+// Three-tier lookup: config override → hugo-bragctl in PATH → hugo in PATH.
+func (c *Config) ResolveHugoCommand() (string, error) {
+	if c.Hugo.Command != "" {
+		return c.Hugo.Command, nil
+	}
+	if path, err := exec.LookPath("hugo-bragctl"); err == nil {
+		return path, nil
+	}
+	if path, err := exec.LookPath("hugo"); err == nil {
+		return path, nil
+	}
+	return "", fmt.Errorf("hugo not found: install Hugo or set [hugo] command in %s", Path())
 }
 
 // MCPCommand returns the resolved what-the-mcp command.

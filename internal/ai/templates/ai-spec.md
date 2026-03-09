@@ -1,9 +1,8 @@
 ## CRITICAL: Startup Rules
 
 When the session starts (first message from user):
-1. Silently read ALL .md files in `context.d/`
-2. Your FIRST visible response must be ONLY a natural greeting
-   based on the persona defined in context.d/persona.md
+Your FIRST visible response must be ONLY a natural greeting
+based on the persona defined in the context below.
 
 NEVER say things like "Let me read the context" or "Let me start
 by loading" — the user does not want to see your internal process.
@@ -36,3 +35,10 @@ Each post should capture a professional accomplishment:
 - Why it matters (the impact)
 - Who was involved (collaboration)
 - Quantify when possible (metrics, numbers)
+
+---
+
+# Context
+
+The following context is dynamically loaded from enabled files in context.d/
+Users can enable/disable context by renaming files (.md = enabled, .md.disabled = disabled)

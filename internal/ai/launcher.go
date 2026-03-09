@@ -123,12 +123,7 @@ var (
 func (a Assistant) GreetArgs() []string {
 	switch a.Name {
 	case "claude":
-		return []string{
-			"--append-system-prompt",
-			"IMPORTANT: When loading context files at session start, do NOT output any text before the greeting. " +
-				"Your first visible output must be ONLY the greeting. No narration of file reading.",
-			".",
-		}
+		return []string{"."}
 	case "gemini":
 		return []string{"--prompt-interactive", "."}
 	default:
@@ -193,6 +188,15 @@ func WriteContext(_ Assistant, sitePath, _ /* siteName */, engineName string) er
 		return fmt.Errorf("render ai-spec: %w", err)
 	}
 
+	// Append enabled context.d/*.md files
+	contextContent, err := loadEnabledContext(sitePath)
+	if err != nil {
+		return fmt.Errorf("load context: %w", err)
+	}
+	if contextContent != "" {
+		content += "\n" + contextContent
+	}
+
 	specPath := filepath.Join(sitePath, aiSpecFile)
 	if err := os.WriteFile(specPath, []byte(content), 0o644); err != nil { //nolint:gosec // generated context
 		return fmt.Errorf("write %s: %w", aiSpecFile, err)
@@ -205,6 +209,33 @@ func WriteContext(_ Assistant, sitePath, _ /* siteName */, engineName string) er
 		}
 	}
 	return nil
+}
+
+// loadEnabledContext reads all enabled .md files from context.d/ and
+// concatenates them with section headers.
+func loadEnabledContext(sitePath string) (string, error) {
+	ctxDir := filepath.Join(sitePath, "context.d")
+	entries, err := os.ReadDir(ctxDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue // skip dirs and disabled files (.md.disabled)
+		}
+		data, err := os.ReadFile(filepath.Join(ctxDir, e.Name())) //nolint:gosec // dir entries from known config path
+		if err != nil {
+			return "", fmt.Errorf("read %s: %w", e.Name(), err)
+		}
+		buf.Write(data)
+		buf.WriteString("\n")
+	}
+	return buf.String(), nil
 }
 
 // ensureSymlink creates a relative symlink from name → target in dir.

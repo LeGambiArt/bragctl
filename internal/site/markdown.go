@@ -45,9 +45,29 @@ func (m *MarkdownEngine) Init(_ context.Context, opts InitOpts) error {
 	}
 
 	// Write .gitignore
-	gitignore := "# bragctl\nCLAUDE.md\nGEMINI.md\n.cursorrules\n"
+	gitignore := "# bragctl generated (overwritten on each ai launch)\nautogen-context.md\nCLAUDE.md\nGEMINI.md\n.cursorrules\n"
 	if err := os.WriteFile(filepath.Join(opts.Path, ".gitignore"), []byte(gitignore), 0o644); err != nil { //nolint:gosec // config file
 		return fmt.Errorf("write .gitignore: %w", err)
+	}
+
+	// Create context.d/ with starter file
+	ctxDir := filepath.Join(opts.Path, "context.d")
+	if err := os.MkdirAll(ctxDir, 0o750); err != nil {
+		return fmt.Errorf("create context.d: %w", err)
+	}
+	ctxExample := `# Custom Context
+
+Add your custom instructions here. This file is never overwritten
+by bragctl — it persists across regenerations.
+
+Examples of what to put here:
+- Team conventions and project names
+- Preferred writing style for brag entries
+- JQL queries you use frequently
+- Sprint naming patterns
+`
+	if err := os.WriteFile(filepath.Join(ctxDir, "example.md"), []byte(ctxExample), 0o644); err != nil { //nolint:gosec // user content
+		return fmt.Errorf("write context.d/example.md: %w", err)
 	}
 
 	// Write a sample first post

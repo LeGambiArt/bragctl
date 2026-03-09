@@ -115,8 +115,8 @@ func (h *HugoEngine) Serve(ctx context.Context, sitePath string, opts ServeOpts)
 		return err
 	}
 
-	args := []string{"server", "-D", "--port", fmt.Sprintf("%d", opts.Port)}
-	cmd := exec.CommandContext(ctx, hugoCmd, args...) //nolint:gosec // resolved binary + user port
+	args := []string{"server", "-D", "--port", fmt.Sprintf("%d", opts.Port), "--bind", opts.Bind}
+	cmd := exec.CommandContext(ctx, hugoCmd, args...) //nolint:gosec // resolved binary + user args
 	cmd.Dir = sitePath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

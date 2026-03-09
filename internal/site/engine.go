@@ -24,7 +24,8 @@ type Engine interface {
 // ServeOpts holds parameters for running a dev server.
 type ServeOpts struct {
 	Port int
-	Open bool // open browser automatically
+	Bind string // address to bind to (default: 127.0.0.1)
+	Open bool   // open browser automatically
 }
 
 // InitOpts holds parameters for creating a new site.

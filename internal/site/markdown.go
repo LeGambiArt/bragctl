@@ -83,7 +83,7 @@ accomplishments, contributions, and impact.
 
 // Serve starts a simple HTTP server that renders markdown posts.
 func (m *MarkdownEngine) Serve(ctx context.Context, sitePath string, opts ServeOpts) error {
-	addr := fmt.Sprintf(":%d", opts.Port)
+	addr := fmt.Sprintf("%s:%d", opts.Bind, opts.Port)
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           newMarkdownServer(sitePath),
@@ -95,7 +95,7 @@ func (m *MarkdownEngine) Serve(ctx context.Context, sitePath string, opts ServeO
 		_ = srv.Close()
 	}()
 
-	fmt.Printf("Serving markdown site at http://localhost:%d\n", opts.Port)
+	fmt.Printf("Serving markdown site at http://%s:%d\n", opts.Bind, opts.Port)
 	fmt.Println("Press Ctrl+C to stop")
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("serve: %w", err)

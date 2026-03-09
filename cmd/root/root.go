@@ -182,6 +182,7 @@ func listCmd() *cobra.Command {
 
 func serveCmd() *cobra.Command {
 	var port int
+	var bind string
 
 	cmd := &cobra.Command{
 		Use:               "serve [site-name]",
@@ -199,11 +200,13 @@ func serveCmd() *cobra.Command {
 			}
 			return s.Engine.Serve(cmd.Context(), s.Path, site.ServeOpts{
 				Port: port,
+				Bind: bind,
 			})
 		},
 	}
 
 	cmd.Flags().IntVarP(&port, "port", "p", 1313, "Port to serve on")
+	cmd.Flags().StringVar(&bind, "bind", "127.0.0.1", "Address to bind to (use 0.0.0.0 for all interfaces)")
 	return cmd
 }
 

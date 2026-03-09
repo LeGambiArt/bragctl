@@ -7,6 +7,7 @@ import (
 
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/site"
+	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
 )
 
 func configCmd() *cobra.Command {
@@ -32,22 +33,23 @@ func configShowCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("Config:    %s\n", config.Path())
-			fmt.Printf("Base dir:  %s\n", config.BaseDir())
-			fmt.Printf("Sites:     %s\n", config.SitesDir())
-			fmt.Println()
-
-			if cfg.DefaultSite != "" {
-				fmt.Printf("Default site:   %s\n", cfg.DefaultSite)
-			} else {
-				fmt.Printf("Default site:   (not set)\n")
+			dflt := cfg.DefaultSite
+			if dflt == "" {
+				dflt = "(not set)"
 			}
 
-			fmt.Printf("MCP command:    %s\n", cfg.MCPCommand())
-			fmt.Printf("MCP workdir:    %s\n", cfg.MCPWorkdir())
+			rows := [][]string{
+				{"Config", config.Path()},
+				{"Base dir", config.BaseDir()},
+				{"Sites", config.SitesDir()},
+				{"Default site", dflt},
+				{"MCP command", cfg.MCPCommand()},
+				{"MCP workdir", cfg.MCPWorkdir()},
+			}
 			if len(cfg.MCP.Args) > 0 {
-				fmt.Printf("MCP extra args: %v\n", cfg.MCP.Args)
+				rows = append(rows, []string{"MCP extra args", fmt.Sprintf("%v", cfg.MCP.Args)})
 			}
+			ui.PrintKeyValueTable(rows)
 
 			return nil
 		},
@@ -75,7 +77,7 @@ func configSetDefaultCmd() *cobra.Command {
 			if err := config.Save(cfg); err != nil {
 				return err
 			}
-			fmt.Printf("Default site set to %q\n", args[0])
+			ui.Success("Default site set to %q", args[0])
 			return nil
 		},
 	}
@@ -94,7 +96,7 @@ func configClearDefaultCmd() *cobra.Command {
 			if err := config.Save(cfg); err != nil {
 				return err
 			}
-			fmt.Println("Default site cleared")
+			ui.Success("Default site cleared")
 			return nil
 		},
 	}

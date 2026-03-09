@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/site"
+	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
 )
 
 // New creates the root cobra command with all subcommands.
@@ -22,7 +22,8 @@ func New(version, buildDate string) *cobra.Command {
 		Long: `bragctl is a CLI tool for managing brag document sites.
 It supports Hugo and plain Markdown engines, and integrates
 with AI assistants (Claude, Cursor, Gemini) via MCP.`,
-		SilenceUsage: true,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
 
 	rootCmd.AddCommand(versionCmd(version, buildDate))
@@ -84,16 +85,19 @@ func initCmd() *cobra.Command {
 			// Prompt for author if not provided and stdin is a terminal
 			if author == "" {
 				dflt := currentUser()
-				if isTerminal() && !cmd.Flags().Changed("author") {
-					author = prompt(fmt.Sprintf("Author name [%s]: ", dflt), dflt)
+				if ui.IsTerminal() && !cmd.Flags().Changed("author") {
+					author = ui.PromptInput("Author name", dflt)
 				} else {
 					author = dflt
 				}
 			}
 
 			// Prompt for AI preference if not provided
-			if aiPref == "" && isTerminal() && !cmd.Flags().Changed("ai") {
-				aiPref = prompt("AI assistant (claude/cursor/gemini) [auto]: ", "")
+			if aiPref == "" && ui.IsTerminal() && !cmd.Flags().Changed("ai") {
+				aiPref = ui.PromptSelect("AI assistant", []string{"auto", "claude", "cursor", "gemini"}, "auto")
+				if aiPref == "auto" {
+					aiPref = ""
+				}
 			}
 
 			// Remove existing site if --force was used
@@ -116,8 +120,8 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("Created site %q at %s\n", s.Name, s.Path)
-			fmt.Printf("Engine: %s\n", s.Engine.Name())
+			ui.Success("Created site %q at %s", s.Name, s.Path)
+			ui.KeyValue("Engine:", s.Engine.Name())
 
 			// Set as default if it's the first site or no default is set
 			if cfg.DefaultSite == "" {
@@ -125,12 +129,12 @@ func initCmd() *cobra.Command {
 				if err := config.Save(cfg); err != nil {
 					return fmt.Errorf("save config: %w", err)
 				}
-				fmt.Printf("Set as default site\n")
+				ui.Info("Set as default site")
 			}
 
 			fmt.Println()
-			fmt.Println("To start writing:")
-			fmt.Printf("  bragctl ai %s\n", s.Name)
+			ui.Dim("To start writing:")
+			ui.Dim("  bragctl ai %s", s.Name)
 			return nil
 		},
 	}
@@ -166,25 +170,12 @@ func listCmd() *cobra.Command {
 			}
 
 			if len(sites) == 0 {
-				fmt.Println("No sites found. Create one with: bragctl init <name>")
+				ui.Dim("No sites found. Create one with: bragctl init <name>")
 				return nil
 			}
 
-			// Header
-			fmt.Printf("  %-20s %-10s %-8s %-9s %s\n", "Site", "Engine", "AI", "Status", "Port")
-			fmt.Printf("  %-20s %-10s %-8s %-9s %s\n", "----", "------", "--", "------", "----")
-
-			for _, s := range sites {
-				marker := " "
-				if s.Name == cfg.DefaultSite {
-					marker = "*"
-				}
-
-				ai := s.Config.AI
-				if ai == "" {
-					ai = "-"
-				}
-
+			rows := make([]ui.SiteRow, len(sites))
+			for i, s := range sites {
 				status := "stopped"
 				port := "-"
 				if state := site.ReadServerState(s.Path); state.IsRunning() {
@@ -192,8 +183,16 @@ func listCmd() *cobra.Command {
 					port = fmt.Sprintf("%d", state.Port)
 				}
 
-				fmt.Printf("%s %-20s %-10s %-8s %-9s %s\n", marker, s.Name, s.Config.Engine, ai, status, port)
+				rows[i] = ui.SiteRow{
+					Name:      s.Name,
+					Engine:    s.Config.Engine,
+					AI:        s.Config.AI,
+					Status:    status,
+					Port:      port,
+					IsDefault: s.Name == cfg.DefaultSite,
+				}
 			}
+			ui.PrintSiteTable(rows)
 			return nil
 		},
 	}
@@ -257,7 +256,7 @@ For markdown sites, creates dated posts:
 				return err
 			}
 
-			fmt.Printf("Entry: %s\n", path)
+			ui.Success("Entry: %s", path)
 			return nil
 		},
 	}
@@ -334,23 +333,4 @@ func currentUser() string {
 		return user
 	}
 	return "Unknown"
-}
-
-func isTerminal() bool {
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice != 0
-}
-
-func prompt(question, defaultVal string) string {
-	fmt.Print(question)
-	var input string
-	_, _ = fmt.Scanln(&input)
-	input = strings.TrimSpace(input)
-	if input == "" {
-		return defaultVal
-	}
-	return input
 }

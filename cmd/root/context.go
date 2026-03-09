@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
+	"gitlab.cee.redhat.com/bragctl/bragctl/internal/site"
+	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
 )
 
 func contextCmd() *cobra.Command {
@@ -47,23 +49,31 @@ func contextListCmd() *cobra.Command {
 			entries, err := os.ReadDir(ctxDir)
 			if err != nil {
 				if os.IsNotExist(err) {
-					fmt.Println("No context.d/ directory found.")
+					ui.Dim("No context.d/ directory found.")
 					return nil
 				}
 				return err
 			}
 
+			var rows []ui.ContextRow
 			for _, e := range entries {
 				if e.IsDir() {
 					continue
 				}
 				name := e.Name()
 				if strings.HasSuffix(name, ".md") {
-					fmt.Printf("  %-30s enabled\n", strings.TrimSuffix(name, ".md"))
+					rows = append(rows, ui.ContextRow{
+						Name:    strings.TrimSuffix(name, ".md"),
+						Enabled: true,
+					})
 				} else if strings.HasSuffix(name, ".md.disabled") {
-					fmt.Printf("  %-30s disabled\n", strings.TrimSuffix(name, ".md.disabled"))
+					rows = append(rows, ui.ContextRow{
+						Name:    strings.TrimSuffix(name, ".md.disabled"),
+						Enabled: false,
+					})
 				}
 			}
+			ui.PrintContextTable(rows)
 			return nil
 		},
 	}
@@ -74,7 +84,7 @@ func contextEnableCmd() *cobra.Command {
 		Use:               "enable <name> [site]",
 		Short:             "Enable a context file",
 		Args:              cobra.RangeArgs(1, 2),
-		ValidArgsFunction: completeSiteNames,
+		ValidArgsFunction: completeContextArgs,
 		RunE: func(_ *cobra.Command, args []string) error {
 			return toggleContext(args, true)
 		},
@@ -86,7 +96,7 @@ func contextDisableCmd() *cobra.Command {
 		Use:               "disable <name> [site]",
 		Short:             "Disable a context file",
 		Args:              cobra.RangeArgs(1, 2),
-		ValidArgsFunction: completeSiteNames,
+		ValidArgsFunction: completeContextArgs,
 		RunE: func(_ *cobra.Command, args []string) error {
 			return toggleContext(args, false)
 		},
@@ -98,7 +108,7 @@ func contextEditCmd() *cobra.Command {
 		Use:               "edit <name> [site]",
 		Short:             "Edit a context file in $EDITOR",
 		Args:              cobra.RangeArgs(1, 2),
-		ValidArgsFunction: completeSiteNames,
+		ValidArgsFunction: completeContextArgs,
 		RunE: func(_ *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -155,7 +165,7 @@ func toggleContext(args []string, enable bool) error {
 		dst := filepath.Join(ctxDir, name+".md")
 		if _, statErr := os.Stat(src); os.IsNotExist(statErr) {
 			if _, statErr := os.Stat(dst); statErr == nil {
-				fmt.Printf("%s is already enabled\n", name)
+				ui.Dim("%s is already enabled", name)
 				return nil
 			}
 			return fmt.Errorf("context %q not found", name)
@@ -163,13 +173,13 @@ func toggleContext(args []string, enable bool) error {
 		if err := os.Rename(src, dst); err != nil {
 			return err
 		}
-		fmt.Printf("Enabled %s\n", name)
+		ui.Success("Enabled %s", name)
 	} else {
 		src := filepath.Join(ctxDir, name+".md")
 		dst := filepath.Join(ctxDir, name+".md.disabled")
 		if _, statErr := os.Stat(src); os.IsNotExist(statErr) {
 			if _, statErr := os.Stat(dst); statErr == nil {
-				fmt.Printf("%s is already disabled\n", name)
+				ui.Dim("%s is already disabled", name)
 				return nil
 			}
 			return fmt.Errorf("context %q not found", name)
@@ -177,7 +187,58 @@ func toggleContext(args []string, enable bool) error {
 		if err := os.Rename(src, dst); err != nil {
 			return err
 		}
-		fmt.Printf("Disabled %s\n", name)
+		ui.Success("Disabled %s", name)
 	}
 	return nil
+}
+
+// completeContextArgs completes context names for arg 0, site names for arg 1.
+func completeContextArgs(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+	if len(args) == 0 {
+		// First arg: complete context names from default site
+		return completeContextNames()
+	}
+	if len(args) == 1 {
+		// Second arg: complete site names
+		cfg, err := config.Load()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		mgr := site.NewManager(cfg)
+		names, _ := mgr.ListNames()
+		return names, cobra.ShellCompDirectiveNoFileComp
+	}
+	return nil, cobra.ShellCompDirectiveNoFileComp
+}
+
+func completeContextNames() ([]string, cobra.ShellCompDirective) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	mgr := site.NewManager(cfg)
+	s, err := mgr.Resolve("")
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	ctxDir := filepath.Join(s.Path, "context.d")
+	entries, err := os.ReadDir(ctxDir)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if strings.HasSuffix(name, ".md") {
+			names = append(names, strings.TrimSuffix(name, ".md"))
+		} else if strings.HasSuffix(name, ".md.disabled") {
+			names = append(names, strings.TrimSuffix(name, ".md.disabled"))
+		}
+	}
+	return names, cobra.ShellCompDirectiveNoFileComp
 }

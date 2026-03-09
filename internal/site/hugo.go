@@ -12,6 +12,7 @@ import (
 
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ai"
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
+	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
 )
 
 //go:embed templates/hugo/*
@@ -43,14 +44,14 @@ func (h *HugoEngine) Init(_ context.Context, opts InitOpts) error {
 	}
 
 	// 1. hugo new site <path> --force
-	fmt.Print("Creating Hugo site... ")
-	cmd := exec.Command(hugoCmd, "new", "site", opts.Path, "--force") //nolint:gosec // resolved binary
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	if err := cmd.Run(); err != nil {
+	if err := ui.Spin("Creating Hugo site", func() error {
+		cmd := exec.Command(hugoCmd, "new", "site", opts.Path, "--force") //nolint:gosec // resolved binary
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		return cmd.Run()
+	}); err != nil {
 		return fmt.Errorf("hugo new site: %w", err)
 	}
-	fmt.Println("done")
 
 	// 2. Write _config.yaml (bragctl site config)
 	siteCfg := Config{
@@ -105,11 +106,11 @@ func (h *HugoEngine) Init(_ context.Context, opts InitOpts) error {
 	}
 
 	// 8. Install hugo-book theme (copy from shared cache)
-	fmt.Print("Installing theme... ")
-	if err := h.installTheme(opts.Path); err != nil {
+	if err := ui.Spin("Installing theme", func() error {
+		return h.installTheme(opts.Path)
+	}); err != nil {
 		return err
 	}
-	fmt.Println("done")
 
 	// 9. Render context.d/ templates
 	if err := ai.RenderContextTemplates(opts.Path, opts.Author, "hugo", opts.Title); err != nil {
@@ -329,11 +330,9 @@ func (h *HugoEngine) ensureThemeCache() error {
 		return fmt.Errorf("create themes dir: %w", err)
 	}
 
-	fmt.Print("Downloading hugo-book theme... ")
 	if err := gitCmd(".", "clone", repo, cacheDir).Run(); err != nil {
 		return fmt.Errorf("clone theme: %w", err)
 	}
-	fmt.Println("done")
 
 	// Pin to specific commit
 	commit := h.themeCommit()

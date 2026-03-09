@@ -9,6 +9,7 @@ import (
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/mcp"
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/site"
+	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
 )
 
 func aiCmd() *cobra.Command {
@@ -138,7 +139,7 @@ func mcpSetupCmd() *cobra.Command {
 				if err := setupMCP(cfg, name, s.Path); err != nil {
 					return fmt.Errorf("mcp setup for %s: %w", name, err)
 				}
-				fmt.Printf("MCP configured for %s at %s\n", name, s.Path)
+				ui.Success("MCP configured for %s at %s", name, s.Path)
 			}
 			return nil
 		},
@@ -170,7 +171,7 @@ func launchForSite(cfg *config.Config, assistant ai.Assistant, s *site.Site, res
 		extraArgs = append(extraArgs, assistant.GreetArgs()...)
 	}
 
-	fmt.Printf("Launching %s for site %q...\n", assistant.Name, s.Name)
+	ui.Info("Launching %s for site %q...", assistant.Name, s.Name)
 	return ai.Launch(assistant, s.Path, extraArgs...)
 }
 
@@ -191,7 +192,10 @@ func resolveSite(cfg *config.Config, args []string) (*site.Site, error) {
 	return mgr.Resolve(siteName(args))
 }
 
-func completeSiteNames(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+func completeSiteNames(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+	if len(args) > 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp

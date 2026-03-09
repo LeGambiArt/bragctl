@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ai"
+	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
 	"gopkg.in/yaml.v3"
 )
 
@@ -141,8 +142,8 @@ func (m *MarkdownEngine) Serve(ctx context.Context, sitePath string, opts ServeO
 		_ = srv.Close()
 	}()
 
-	fmt.Printf("Serving markdown site at http://%s:%d\n", opts.Bind, opts.Port)
-	fmt.Println("Press Ctrl+C to stop")
+	ui.Info("Serving markdown site at http://%s:%d", opts.Bind, opts.Port)
+	ui.Dim("Press Ctrl+C to stop")
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("serve: %w", err)
 	}

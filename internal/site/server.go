@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
+	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
 )
 
 const pidFileName = ".server.pid"
@@ -169,8 +170,8 @@ func StartBackground(siteName, sitePath string, opts ServeOpts) error {
 	if bind == "" {
 		bind = "127.0.0.1"
 	}
-	fmt.Printf("✓ Server started for %q on http://%s:%d\n", siteName, bind, port)
-	fmt.Printf("  Logs: %s\n", logPath)
+	ui.Success("Server started for %q on http://%s:%d", siteName, bind, port)
+	ui.Dim("  Logs: %s", logPath)
 
 	return nil
 }
@@ -197,7 +198,7 @@ func StopServer(siteName, sitePath string) error {
 	_ = process.Signal(syscall.SIGTERM)
 
 	removeServerState(sitePath)
-	fmt.Printf("✓ Server stopped for %q\n", siteName)
+	ui.Success("Server stopped for %q", siteName)
 
 	return nil
 }

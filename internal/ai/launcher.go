@@ -118,6 +118,18 @@ var (
 	Gemini = Assistant{Name: "gemini", Command: "gemini", ContextFile: "GEMINI.md"}
 )
 
+// GreetArgs returns the CLI arguments to send an initial "." prompt
+// that triggers the persona greeting on session start.
+func (a Assistant) GreetArgs() []string {
+	switch a.Name {
+	case "gemini":
+		return []string{"--prompt-interactive", "."}
+	default:
+		// Claude and others: positional prompt arg
+		return []string{"."}
+	}
+}
+
 // AllAssistants returns the list of supported assistants.
 func AllAssistants() []Assistant {
 	return []Assistant{Claude, Cursor, Gemini}

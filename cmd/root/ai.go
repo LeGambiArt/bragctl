@@ -164,6 +164,10 @@ func launchForSite(cfg *config.Config, assistant ai.Assistant, s *site.Site, res
 	var extraArgs []string
 	if resume {
 		extraArgs = append(extraArgs, "--resume")
+	} else if assistant.Name != "cursor" {
+		// Send "." as initial prompt to trigger persona greeting.
+		// Claude: positional arg. Gemini: --prompt-interactive flag.
+		extraArgs = append(extraArgs, assistant.GreetArgs()...)
 	}
 
 	fmt.Printf("Launching %s for site %q...\n", assistant.Name, s.Name)

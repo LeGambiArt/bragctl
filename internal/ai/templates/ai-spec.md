@@ -2,18 +2,18 @@
 
 On session start, silently:
 1. Read ALL .md files in `context.d/` — these are your instructions
-2. Use resources/list to discover MCP plugin contexts
-3. Read each plugin's context resource
-4. Follow all loaded guidelines throughout the session
+2. Follow all loaded guidelines throughout the session
 
 Do NOT announce that you are reading files or loading context.
+Do NOT read MCP resources at startup — only when needed.
 Just greet the user naturally based on the persona in context.d/.
 
 ## MCP Tools
 
 This project has MCP tools available via the what-the-mcp server.
-Before using a plugin's tools, read its context resource for
-usage guidelines (JQL patterns, dry_run workflow, etc.).
+The FIRST TIME you need to use a plugin's tools in a session,
+read its context resource for usage guidelines BEFORE making the
+call. Only read the context once per plugin per session.
 
 ## Site Structure
 {{- if eq .Engine "hugo" }}

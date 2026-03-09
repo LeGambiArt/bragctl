@@ -27,6 +27,8 @@ func TestHugoTemplatesEmbedded(t *testing.T) {
 		"templates/hugo/archetypes/week.md",
 		"templates/hugo/archetypes/month.md",
 		"templates/hugo/archetypes/year.md",
+		"templates/hugo/static/favicon.svg",
+		"templates/hugo/static/images/logo.svg",
 	}
 	for _, f := range files {
 		data, err := hugoTemplates.ReadFile(f)

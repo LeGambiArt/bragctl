@@ -88,7 +88,18 @@ func (h *HugoEngine) Init(_ context.Context, opts InitOpts) error {
 		return err
 	}
 
-	// 7. Write Hugo-specific .gitignore
+	// 7. Deploy static assets (logo, favicon)
+	staticFiles := map[string]string{
+		"templates/hugo/static/favicon.svg":     filepath.Join(opts.Path, "static", "favicon.svg"),
+		"templates/hugo/static/images/logo.svg": filepath.Join(opts.Path, "static", "images", "logo.svg"),
+	}
+	for src, dst := range staticFiles {
+		if err := h.copyEmbedded(src, dst); err != nil {
+			return fmt.Errorf("deploy static %s: %w", filepath.Base(src), err)
+		}
+	}
+
+	// 8. Write Hugo-specific .gitignore
 	if err := h.copyEmbedded("templates/hugo/gitignore", filepath.Join(opts.Path, ".gitignore")); err != nil {
 		return fmt.Errorf("write .gitignore: %w", err)
 	}

@@ -169,12 +169,29 @@ func listCmd() *cobra.Command {
 				return nil
 			}
 
+			// Header
+			fmt.Printf("  %-20s %-10s %-8s %-9s %s\n", "Site", "Engine", "AI", "Status", "Port")
+			fmt.Printf("  %-20s %-10s %-8s %-9s %s\n", "----", "------", "--", "------", "----")
+
 			for _, s := range sites {
 				marker := " "
 				if s.Name == cfg.DefaultSite {
 					marker = "*"
 				}
-				fmt.Printf(" %s %-20s %-10s %s\n", marker, s.Name, s.Config.Engine, s.Path)
+
+				ai := s.Config.AI
+				if ai == "" {
+					ai = "-"
+				}
+
+				status := "stopped"
+				port := "-"
+				if state := site.ReadServerState(s.Path); state.IsRunning() {
+					status = "running"
+					port = fmt.Sprintf("%d", state.Port)
+				}
+
+				fmt.Printf("%s %-20s %-10s %-8s %-9s %s\n", marker, s.Name, s.Config.Engine, ai, status, port)
 			}
 			return nil
 		},

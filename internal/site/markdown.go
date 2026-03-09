@@ -81,6 +81,52 @@ accomplishments, contributions, and impact.
 	return nil
 }
 
+// New creates a new markdown post.
+func (m *MarkdownEngine) New(_ context.Context, sitePath string, opts NewOpts) (string, error) {
+	kind := opts.Kind
+	if kind == "" {
+		kind = "week"
+	}
+
+	now := time.Now()
+	date := now.Format("2006-01-02")
+
+	var filename, title string
+
+	switch kind {
+	case "week":
+		period := CurrentBiWeeklyPeriod()
+		filename = fmt.Sprintf("%s-week-%02d.md", date, period.Week)
+		title = fmt.Sprintf("Week %d", period.Week)
+	case "post":
+		slug := "entry"
+		if opts.Title != "" {
+			slug = opts.Title
+		}
+		filename = fmt.Sprintf("%s-%s.md", date, slug)
+		title = opts.Title
+		if title == "" {
+			title = "New Entry"
+		}
+	default:
+		return "", fmt.Errorf("markdown engine supports week and post kinds, not %q", kind)
+	}
+
+	fullPath := filepath.Join(sitePath, "posts", filename)
+
+	// Check if file already exists
+	if _, err := os.Stat(fullPath); err == nil {
+		return fullPath, nil
+	}
+
+	content := fmt.Sprintf("---\ntitle: %q\ndate: %s\ntags: []\n---\n\n", title, date)
+	if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil { //nolint:gosec // user content file
+		return "", fmt.Errorf("write post: %w", err)
+	}
+
+	return fullPath, nil
+}
+
 // Serve starts a simple HTTP server that renders markdown posts.
 func (m *MarkdownEngine) Serve(ctx context.Context, sitePath string, opts ServeOpts) error {
 	addr := fmt.Sprintf("%s:%d", opts.Bind, opts.Port)

@@ -140,6 +140,86 @@ func (h *HugoEngine) Serve(ctx context.Context, sitePath string, opts ServeOpts)
 	return cmd.Run()
 }
 
+// New creates a new Hugo content entry using archetypes.
+func (h *HugoEngine) New(_ context.Context, sitePath string, opts NewOpts) (string, error) {
+	hugoCmd, err := h.cfg.ResolveHugoCommand()
+	if err != nil {
+		return "", err
+	}
+
+	kind := opts.Kind
+	if kind == "" {
+		kind = "week"
+	}
+
+	var contentPath string
+
+	switch kind {
+	case "week":
+		period := CurrentBiWeeklyPeriod()
+		contentPath = filepath.Join("content", period.Dir, period.Filename)
+
+		// Auto-create year index if missing
+		yearIndex := filepath.Join("content", period.Year, "_index.md")
+		if _, err := os.Stat(filepath.Join(sitePath, yearIndex)); os.IsNotExist(err) {
+			if err := h.hugoNew(hugoCmd, sitePath, "year", yearIndex); err != nil {
+				return "", fmt.Errorf("create year index: %w", err)
+			}
+		}
+
+		// Auto-create month index if missing
+		monthIndex := filepath.Join("content", period.Dir, "_index.md")
+		if _, err := os.Stat(filepath.Join(sitePath, monthIndex)); os.IsNotExist(err) {
+			if err := h.hugoNew(hugoCmd, sitePath, "month", monthIndex); err != nil {
+				return "", fmt.Errorf("create month index: %w", err)
+			}
+		}
+
+	case "month":
+		period := CurrentBiWeeklyPeriod()
+		contentPath = filepath.Join("content", period.Dir, "_index.md")
+
+		// Auto-create year index if missing
+		yearIndex := filepath.Join("content", period.Year, "_index.md")
+		if _, err := os.Stat(filepath.Join(sitePath, yearIndex)); os.IsNotExist(err) {
+			if err := h.hugoNew(hugoCmd, sitePath, "year", yearIndex); err != nil {
+				return "", fmt.Errorf("create year index: %w", err)
+			}
+		}
+
+	case "year":
+		period := CurrentBiWeeklyPeriod()
+		contentPath = filepath.Join("content", period.Year, "_index.md")
+
+	default:
+		return "", fmt.Errorf("unknown kind: %s (use week, month, or year)", kind)
+	}
+
+	// Check if file already exists
+	fullPath := filepath.Join(sitePath, contentPath)
+	if _, err := os.Stat(fullPath); err == nil {
+		return fullPath, nil
+	}
+
+	if err := h.hugoNew(hugoCmd, sitePath, kind, contentPath); err != nil {
+		return "", err
+	}
+
+	return filepath.Join(sitePath, contentPath), nil
+}
+
+// hugoNew runs hugo new -k <kind> <path> in the site directory.
+func (h *HugoEngine) hugoNew(hugoCmd, sitePath, kind, contentPath string) error {
+	cmd := exec.Command(hugoCmd, "new", "-k", kind, contentPath) //nolint:gosec // resolved binary
+	cmd.Dir = sitePath
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("hugo new -k %s %s: %w", kind, contentPath, err)
+	}
+	return nil
+}
+
 // Validate checks that a directory is a valid Hugo site.
 func (h *HugoEngine) Validate(sitePath string) error {
 	cfg, err := loadConfig(sitePath)

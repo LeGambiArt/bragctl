@@ -35,6 +35,7 @@ with AI assistants (Claude, Cursor, Gemini) via MCP.`,
 	rootCmd.AddCommand(mcpSetupCmd())
 	rootCmd.AddCommand(contextCmd())
 	rootCmd.AddCommand(configCmd())
+	rootCmd.AddCommand(newCmd())
 	rootCmd.AddCommand(serveCmd())
 	rootCmd.AddCommand(stopCmd())
 
@@ -196,6 +197,77 @@ func listCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newCmd() *cobra.Command {
+	var kind string
+
+	cmd := &cobra.Command{
+		Use:   "new [site-name] [title]",
+		Short: "Create a new brag entry",
+		Long: `Create a new brag entry for a site.
+
+For Hugo sites, creates entries using archetypes:
+  bragctl new              # current bi-weekly entry (default)
+  bragctl new --kind month # monthly overview
+  bragctl new --kind year  # yearly overview
+
+For markdown sites, creates dated posts:
+  bragctl new              # current bi-weekly entry
+  bragctl new "my topic"   # freeform post`,
+		Args:              cobra.MaximumNArgs(2),
+		ValidArgsFunction: completeSiteNames,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+
+			// Parse args: [site-name] [title]
+			var siteName, title string
+			switch len(args) {
+			case 2:
+				siteName = args[0]
+				title = args[1]
+			case 1:
+				// Could be site name or title — try as site first
+				mgr := site.NewManager(cfg)
+				if _, err := mgr.Resolve(args[0]); err == nil {
+					siteName = args[0]
+				} else {
+					title = args[0]
+				}
+			}
+
+			s, err := resolveSite(cfg, []string{siteName})
+			if err != nil {
+				return err
+			}
+
+			k := kind
+			if k == "" && title != "" {
+				k = "post"
+			}
+
+			path, err := s.Engine.New(cmd.Context(), s.Path, site.NewOpts{
+				Kind:  k,
+				Title: title,
+			})
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("Entry: %s\n", path)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&kind, "kind", "k", "", "Entry kind: week (default), month, year, post")
+	_ = cmd.RegisterFlagCompletionFunc("kind", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return []string{"week", "month", "year", "post"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
+	return cmd
 }
 
 func serveCmd() *cobra.Command {

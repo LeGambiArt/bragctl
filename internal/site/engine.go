@@ -19,6 +19,15 @@ type Engine interface {
 
 	// Serve starts a dev server for previewing the site.
 	Serve(ctx context.Context, sitePath string, opts ServeOpts) error
+
+	// New creates a new content entry. Returns the path to the created file.
+	New(ctx context.Context, sitePath string, opts NewOpts) (string, error)
+}
+
+// NewOpts holds parameters for creating a new content entry.
+type NewOpts struct {
+	Kind  string // "week" (default), "month", "year", "post"
+	Title string // for freeform posts
 }
 
 // ServeOpts holds parameters for running a dev server.

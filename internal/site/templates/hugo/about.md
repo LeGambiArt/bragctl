@@ -1,10 +1,9 @@
 ---
 title: "About %%AUTHOR%%"
-date: {{ .Date }}
+date: %%DATE%%
 draft: false
 tags: ["about", "profile", "personal"]
 categories: ["profile"]
-layout: "about"
 ---
 
 # About %%AUTHOR%%
@@ -195,9 +194,8 @@ Welcome to my professional brag document! I'm **%%AUTHOR%%**, a [Role/Title] pas
 
 **Navigation:**
 - **Home**: [Brag Documents](../)
-- **Current Year**: [{{ dateFormat "2006" .Date }}](../years/{{ dateFormat "2006" .Date }}/)
-- **Latest Entries**: [Recent Accomplishments](../years/{{ dateFormat "2006" .Date }}/months/{{ dateFormat "January" .Date }}/)
+- **Current Year**: [%%YEAR%%](../%%YEAR%%/)
 
 ---
 
-*Last updated: {{ dateFormat "January 2, 2006" .Date }}*
+*Last updated: %%LONGDATE%%*

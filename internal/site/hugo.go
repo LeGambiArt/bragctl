@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ai"
 	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
@@ -146,9 +147,13 @@ func (h *HugoEngine) deployTemplate(src, dst, author, title string) error {
 		return fmt.Errorf("read template %s: %w", src, err)
 	}
 
+	now := time.Now()
 	content := string(data)
 	content = strings.ReplaceAll(content, "%%AUTHOR%%", author)
 	content = strings.ReplaceAll(content, "%%TITLE%%", title)
+	content = strings.ReplaceAll(content, "%%DATE%%", now.Format("2006-01-02"))
+	content = strings.ReplaceAll(content, "%%YEAR%%", now.Format("2006"))
+	content = strings.ReplaceAll(content, "%%LONGDATE%%", now.Format("January 2, 2006"))
 
 	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
 		return fmt.Errorf("create dir for %s: %w", dst, err)

@@ -69,6 +69,47 @@ func TestHugoDeployTemplate(t *testing.T) {
 	}
 }
 
+func TestHugoDeployAboutMd(t *testing.T) {
+	dir := t.TempDir()
+	e := NewHugoEngine(&config.Config{})
+
+	dst := filepath.Join(dir, "content", "about.md")
+	if err := e.deployTemplate("templates/hugo/about.md", dst, "Alice", "Alice's Brags"); err != nil {
+		t.Fatalf("deployTemplate about.md: %v", err)
+	}
+
+	data, err := os.ReadFile(dst) //nolint:gosec // test file
+	if err != nil {
+		t.Fatalf("read about.md: %v", err)
+	}
+
+	content := string(data)
+
+	// Should have author substituted
+	if !strings.Contains(content, "About Alice") {
+		t.Error("about.md missing author substitution")
+	}
+
+	// Should have a real date, not a placeholder
+	if strings.Contains(content, "%%"+"DATE%%") {
+		t.Error("about.md still contains date placeholder")
+	}
+	if strings.Contains(content, "%%"+"YEAR%%") {
+		t.Error("about.md still contains year placeholder")
+	}
+
+	// Must NOT contain Hugo template syntax (it's a content file, not an archetype)
+	if strings.Contains(content, "{{") {
+		t.Errorf("about.md contains Hugo template syntax:\n%s",
+			firstLineContaining(content, "{{"))
+	}
+
+	// Should have a valid YAML date in frontmatter
+	if !strings.Contains(content, "date: 20") {
+		t.Error("about.md missing valid date in frontmatter")
+	}
+}
+
 func TestHugoCopyEmbedded(t *testing.T) {
 	dir := t.TempDir()
 	e := NewHugoEngine(&config.Config{})

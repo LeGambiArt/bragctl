@@ -35,7 +35,7 @@ func DefaultContextTemplates() []ContextTemplate {
 		{Name: "startup", File: "startup.md", Enabled: true},
 		{Name: "shutdown", File: "shutdown.md", Enabled: true},
 		{Name: "notes", File: "notes.md", Enabled: true},
-		{Name: "adhd", File: "adhd.md", Enabled: false},
+		{Name: "adhd", File: "adhd.md", Enabled: true},
 	}
 }
 
@@ -122,10 +122,16 @@ var (
 // that triggers the persona greeting on session start.
 func (a Assistant) GreetArgs() []string {
 	switch a.Name {
+	case "claude":
+		return []string{
+			"--append-system-prompt",
+			"IMPORTANT: When loading context files at session start, do NOT output any text before the greeting. " +
+				"Your first visible output must be ONLY the greeting. No narration of file reading.",
+			".",
+		}
 	case "gemini":
 		return []string{"--prompt-interactive", "."}
 	default:
-		// Claude and others: positional prompt arg
 		return []string{"."}
 	}
 }

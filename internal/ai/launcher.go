@@ -69,20 +69,50 @@ func Launch(assistant Assistant, sitePath string) error {
 	return cmd.Run()
 }
 
-// WriteContext generates the AI context file for a site.
-func WriteContext(assistant Assistant, sitePath, siteName, engineName string) error {
+// autogenFile is the single source context file that AI-specific
+// files symlink to.
+const autogenFile = "autogen-context.md"
+
+// WriteContext generates autogen-context.md and creates symlinks
+// for all AI assistants (CLAUDE.md, GEMINI.md, .cursorrules).
+func WriteContext(_ Assistant, sitePath, siteName, engineName string) error {
 	content := generateContext(siteName, engineName)
-	path := filepath.Join(sitePath, assistant.ContextFile)
-	return os.WriteFile(path, []byte(content), 0o644) //nolint:gosec // user content file
+	autogenPath := filepath.Join(sitePath, autogenFile)
+	if err := os.WriteFile(autogenPath, []byte(content), 0o644); err != nil { //nolint:gosec // generated context
+		return fmt.Errorf("write %s: %w", autogenFile, err)
+	}
+
+	// Create symlinks for all assistants
+	for _, a := range AllAssistants() {
+		if err := ensureSymlink(sitePath, a.ContextFile, autogenFile); err != nil {
+			return fmt.Errorf("symlink %s: %w", a.ContextFile, err)
+		}
+	}
+	return nil
+}
+
+// ensureSymlink creates a relative symlink from name → target in dir.
+// Removes any existing file or broken symlink at name first.
+func ensureSymlink(dir, name, target string) error {
+	linkPath := filepath.Join(dir, name)
+
+	// Remove existing file/symlink if present
+	if _, err := os.Lstat(linkPath); err == nil {
+		if err := os.Remove(linkPath); err != nil {
+			return fmt.Errorf("remove existing %s: %w", name, err)
+		}
+	}
+
+	return os.Symlink(target, linkPath)
 }
 
 func generateContext(siteName, engineName string) string {
 	var b strings.Builder
 
 	b.WriteString("# Brag Document Assistant\n\n")
-	b.WriteString(fmt.Sprintf("Site: %s\n", siteName))
-	b.WriteString(fmt.Sprintf("Engine: %s\n\n", engineName))
+	b.WriteString(fmt.Sprintf("Site: %s | Engine: %s\n\n", siteName, engineName))
 
+	b.WriteString("## Site Structure\n\n")
 	switch engineName {
 	case "hugo":
 		b.WriteString("Posts are in `content/posts/`.\n")
@@ -101,9 +131,14 @@ func generateContext(siteName, engineName string) string {
 	b.WriteString("- Who was involved (collaboration)\n")
 	b.WriteString("- Quantify when possible (metrics, numbers)\n")
 
-	// Check for custom instructions
-	b.WriteString("\n## Custom Instructions\n\n")
-	b.WriteString("Add an `INSTRUCTIONS.md` file to this site for custom rules.\n")
+	b.WriteString("\n## Additional Context\n\n")
+	b.WriteString("Read all files in `context.d/` for workflow preferences, team\n")
+	b.WriteString("conventions, and custom instructions specific to this site.\n")
+
+	b.WriteString("\n## MCP Tools\n\n")
+	b.WriteString("This project has MCP tools available via the what-the-mcp server.\n")
+	b.WriteString("Before using a plugin's tools for the first time, read its MCP\n")
+	b.WriteString("resource for tool-specific guidelines and usage patterns.\n")
 
 	return b.String()
 }

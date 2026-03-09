@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -48,13 +49,13 @@ func versionCmd(version, buildDate string) *cobra.Command {
 }
 
 func initCmd() *cobra.Command {
-	var engine, title, author string
+	var engine, title, author, aiPref string
 
 	cmd := &cobra.Command{
 		Use:   "init <site-name>",
 		Short: "Create a new brag document site",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			if engine == "" {
 				engine = "markdown"
@@ -62,8 +63,20 @@ func initCmd() *cobra.Command {
 			if title == "" {
 				title = "My Brag Document"
 			}
+
+			// Prompt for author if not provided and stdin is a terminal
 			if author == "" {
-				author = currentUser()
+				dflt := currentUser()
+				if isTerminal() && !cmd.Flags().Changed("author") {
+					author = prompt(fmt.Sprintf("Author name [%s]: ", dflt), dflt)
+				} else {
+					author = dflt
+				}
+			}
+
+			// Prompt for AI preference if not provided
+			if aiPref == "" && isTerminal() && !cmd.Flags().Changed("ai") {
+				aiPref = prompt("AI assistant (claude/cursor/gemini) [auto]: ", "")
 			}
 
 			cfg, err := config.Load()
@@ -77,6 +90,7 @@ func initCmd() *cobra.Command {
 				Title:  title,
 				Author: author,
 				Engine: engine,
+				AI:     aiPref,
 			})
 			if err != nil {
 				return err
@@ -104,6 +118,7 @@ func initCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&engine, "engine", "e", "", "Site engine: markdown (default: markdown)")
 	cmd.Flags().StringVarP(&title, "title", "t", "", "Site title")
 	cmd.Flags().StringVarP(&author, "author", "a", "", "Author name")
+	cmd.Flags().StringVar(&aiPref, "ai", "", "Preferred AI assistant (claude, cursor, gemini)")
 
 	_ = cmd.RegisterFlagCompletionFunc("engine", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 		return []string{"markdown"}, cobra.ShellCompDirectiveNoFileComp
@@ -151,4 +166,23 @@ func currentUser() string {
 		return user
 	}
 	return "Unknown"
+}
+
+func isTerminal() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+func prompt(question, defaultVal string) string {
+	fmt.Print(question)
+	var input string
+	_, _ = fmt.Scanln(&input)
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return defaultVal
+	}
+	return input
 }

@@ -34,6 +34,7 @@ func (m *MarkdownEngine) Init(_ context.Context, opts InitOpts) error {
 		Title:  opts.Title,
 		Author: opts.Author,
 		Engine: "markdown",
+		AI:     opts.AI,
 	}
 	if err := writeConfig(opts.Path, &cfg); err != nil {
 		return err

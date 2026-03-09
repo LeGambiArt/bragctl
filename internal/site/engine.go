@@ -25,6 +25,7 @@ type InitOpts struct {
 	Title  string
 	Author string
 	Engine string
+	AI     string // preferred assistant (claude, cursor, gemini)
 }
 
 // Config is the per-site configuration stored in _config.yaml.

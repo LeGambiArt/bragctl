@@ -76,8 +76,13 @@ func Path() string {
 }
 
 // Load reads the config file. Returns defaults if file doesn't exist.
+// Also ensures the standard directory structure exists.
 func Load() (*Config, error) {
 	cfg := &Config{}
+
+	if err := EnsureDirs(); err != nil {
+		return nil, err
+	}
 
 	data, err := os.ReadFile(Path()) //nolint:gosec // config path from known location
 	if err != nil {
@@ -91,6 +96,25 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+// EnsureDirs creates the standard bragctl directory structure.
+// Safe to call repeatedly — only creates directories that don't exist.
+func EnsureDirs() error {
+	base := BaseDir()
+	dirs := []string{
+		base,
+		filepath.Join(base, "sites"),
+		filepath.Join(base, "plugins"),
+		filepath.Join(base, "env.d"),
+		filepath.Join(base, "credentials"),
+	}
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Save writes the config to disk.

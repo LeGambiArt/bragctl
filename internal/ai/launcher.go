@@ -182,8 +182,8 @@ const aiSpecFile = "ai-spec.md"
 
 // WriteContext renders ai-spec.md from the embedded template and creates
 // symlinks for all AI assistants (CLAUDE.md, GEMINI.md, .cursorrules).
-func WriteContext(_ Assistant, sitePath, _ /* siteName */, engineName string) error {
-	content, err := renderAISpec(engineName)
+func WriteContext(_ Assistant, sitePath, _ /* siteName */, engineName, author string) error {
+	content, err := renderAISpec(engineName, author)
 	if err != nil {
 		return fmt.Errorf("render ai-spec: %w", err)
 	}
@@ -255,9 +255,10 @@ func ensureSymlink(dir, name, target string) error {
 
 type aiSpecData struct {
 	Engine string
+	Author string
 }
 
-func renderAISpec(engineName string) (string, error) {
+func renderAISpec(engineName, author string) (string, error) {
 	tmplContent, err := aiSpecFS.ReadFile("templates/ai-spec.md")
 	if err != nil {
 		return "", fmt.Errorf("read embedded template: %w", err)
@@ -269,7 +270,7 @@ func renderAISpec(engineName string) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, aiSpecData{Engine: engineName}); err != nil {
+	if err := tmpl.Execute(&buf, aiSpecData{Engine: engineName, Author: author}); err != nil {
 		return "", fmt.Errorf("execute template: %w", err)
 	}
 

@@ -18,8 +18,12 @@ Present a brief accomplishment summary:
 
 ## Step 3: Update Brag Document
 
-Update the current brag document entry with today's achievements.
-Follow the rules in `context.d/brag-rules.md`:
+Find the current bi-weekly brag entry. The file path follows the
+pattern `content/YYYY/MonthName/WW-MM-YY.md` (Hugo) or
+`posts/YYYY-MM-DD-week-WW.md` (markdown). If it doesn't exist,
+run `bragctl new` to create it.
+
+Update the entry with today's achievements:
 - Read the current entry first for context
 - Make ONE comprehensive update
 - Write in {{.Author}}'s voice
@@ -28,9 +32,9 @@ Follow the rules in `context.d/brag-rules.md`:
 
 ## Step 4: Commit
 
-Commit the brag document update with a conventional commit message:
+Stage and commit the brag document update:
 ```
-docs: update brag entry for YYYY-MM-DD
+git add content/ && git commit -m "docs: update brag entry for YYYY-MM-DD"
 ```
 
 ## Step 5: Sign Off

@@ -153,7 +153,7 @@ func mcpSetupCmd() *cobra.Command {
 }
 
 func launchForSite(cfg *config.Config, assistant ai.Assistant, s *site.Site, resume bool) error {
-	if err := ai.WriteContext(assistant, s.Path, s.Name, s.Engine.Name()); err != nil {
+	if err := ai.WriteContext(assistant, s.Path, s.Name, s.Engine.Name(), s.Config.Author); err != nil {
 		return fmt.Errorf("write context: %w", err)
 	}
 

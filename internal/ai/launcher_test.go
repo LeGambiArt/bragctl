@@ -9,7 +9,7 @@ import (
 func TestWriteContext(t *testing.T) {
 	dir := t.TempDir()
 
-	if err := WriteContext(Claude, dir, "my-site", "markdown"); err != nil {
+	if err := WriteContext(Claude, dir, "my-site", "markdown", "Alice"); err != nil {
 		t.Fatalf("WriteContext: %v", err)
 	}
 
@@ -69,7 +69,7 @@ func TestWriteContextReplacesExistingFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := WriteContext(Claude, dir, "test", "markdown"); err != nil {
+	if err := WriteContext(Claude, dir, "test", "markdown", "Alice"); err != nil {
 		t.Fatalf("WriteContext: %v", err)
 	}
 
@@ -87,10 +87,10 @@ func TestWriteContextIdempotent(t *testing.T) {
 	dir := t.TempDir()
 
 	// Call twice — should not error
-	if err := WriteContext(Claude, dir, "test", "markdown"); err != nil {
+	if err := WriteContext(Claude, dir, "test", "markdown", "Alice"); err != nil {
 		t.Fatalf("first WriteContext: %v", err)
 	}
-	if err := WriteContext(Cursor, dir, "test", "markdown"); err != nil {
+	if err := WriteContext(Cursor, dir, "test", "markdown", "Alice"); err != nil {
 		t.Fatalf("second WriteContext: %v", err)
 	}
 
@@ -124,7 +124,7 @@ func TestWriteContextAppendsEnabledContext(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := WriteContext(Claude, dir, "test", "markdown"); err != nil {
+	if err := WriteContext(Claude, dir, "test", "markdown", "Alice"); err != nil {
 		t.Fatalf("WriteContext: %v", err)
 	}
 
@@ -157,7 +157,7 @@ func TestWriteContextNoContextDir(t *testing.T) {
 	dir := t.TempDir()
 	// Don't create context.d directory
 
-	if err := WriteContext(Claude, dir, "test", "markdown"); err != nil {
+	if err := WriteContext(Claude, dir, "test", "markdown", "Alice"); err != nil {
 		t.Fatalf("WriteContext: %v", err)
 	}
 

@@ -18,23 +18,36 @@ call. Only read the context once per plugin per session.
 ## Site Structure
 {{- if eq .Engine "hugo" }}
 
-Posts are in `content/posts/`.
-Use Hugo frontmatter format.
-Run `hugo server -D` to preview.
+Bi-weekly brag entries live in `content/YYYY/MonthName/WW-MM-YY.md`.
+Month and year overviews are `_index.md` files in their directories.
+
+Use `bragctl new` to create the current bi-weekly entry (also creates
+month/year index pages if missing). Use `bragctl new --kind month` or
+`bragctl new --kind year` for overviews.
+
+The about page is at `content/about.md`.
+Use `bragctl serve` to preview (runs Hugo server in background).
 {{- else if eq .Engine "markdown" }}
 
-Posts are in `posts/`.
-Use YAML frontmatter: title, date, tags, impact.
-Files are plain markdown — no build step needed.
+Brag entries are in `posts/` as dated markdown files.
+Use `bragctl new` to create the current bi-weekly entry, or
+`bragctl new "topic"` for a freeform post.
+
+Use YAML frontmatter: title, date, tags.
+Use `bragctl serve` to preview (renders markdown in browser).
 {{- end }}
 
 ## Writing Brag Entries
 
-Each post should capture a professional accomplishment:
+Each entry should capture professional accomplishments:
 - What you did (the action)
 - Why it matters (the impact)
 - Who was involved (collaboration)
 - Quantify when possible (metrics, numbers)
+
+When updating entries, read the current file first, then make ONE
+comprehensive update. Write in {{.Author}}'s voice. Frame work as
+impact statements, not task descriptions.
 
 ---
 

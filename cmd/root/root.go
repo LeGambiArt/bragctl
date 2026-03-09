@@ -31,6 +31,7 @@ with AI assistants (Claude, Cursor, Gemini) via MCP.`,
 	rootCmd.AddCommand(cursorCmd())
 	rootCmd.AddCommand(geminiCmd())
 	rootCmd.AddCommand(mcpSetupCmd())
+	rootCmd.AddCommand(contextCmd())
 	rootCmd.AddCommand(configCmd())
 
 	return rootCmd

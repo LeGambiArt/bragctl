@@ -91,7 +91,7 @@ func (h *HugoEngine) Init(_ context.Context, opts InitOpts) error {
 		return fmt.Errorf("write .gitignore: %w", err)
 	}
 
-	// 8. Install hugo-book theme as git submodule
+	// 8. Install hugo-book theme (copy from shared cache)
 	if err := h.installTheme(opts.Path); err != nil {
 		return err
 	}
@@ -215,31 +215,85 @@ func gitCmd(dir string, args ...string) *exec.Cmd {
 	return cmd
 }
 
-// installTheme adds the theme as a git submodule pinned to a specific commit.
-func (h *HugoEngine) installTheme(sitePath string) error {
-	// Need a git repo first for submodule to work
-	if err := gitCmd(sitePath, "init").Run(); err != nil {
-		return fmt.Errorf("git init (for submodule): %w", err)
+// themeCacheDir returns the path to the shared theme cache.
+func themeCacheDir() string {
+	return filepath.Join(config.BaseDir(), "themes", "hugo-book")
+}
+
+// ensureThemeCache clones the theme to ~/.bragctl/themes/hugo-book/ if not present,
+// pinned to the configured commit.
+func (h *HugoEngine) ensureThemeCache() error {
+	cacheDir := themeCacheDir()
+
+	if _, err := os.Stat(cacheDir); err == nil {
+		return nil // already cached
 	}
 
 	repo := h.themeRepo()
-	if err := gitCmd(sitePath, "submodule", "add", repo, "themes/hugo-book").Run(); err != nil { //nolint:gosec // user-configured repo URL
-		return fmt.Errorf("install theme: %w", err)
+	if err := os.MkdirAll(filepath.Dir(cacheDir), 0o750); err != nil {
+		return fmt.Errorf("create themes dir: %w", err)
+	}
+
+	if err := gitCmd(".", "clone", repo, cacheDir).Run(); err != nil {
+		return fmt.Errorf("clone theme: %w", err)
 	}
 
 	// Pin to specific commit
 	commit := h.themeCommit()
-	themePath := filepath.Join(sitePath, "themes", "hugo-book")
-
-	if err := gitCmd(themePath, "checkout", commit).Run(); err != nil { //nolint:gosec // default or configured hash
-		// Commit not in clone — fetch it first (shallow clone case)
-		if fetchErr := gitCmd(themePath, "fetch", "--depth=1", "origin", commit).Run(); fetchErr != nil { //nolint:gosec // same
-			return fmt.Errorf("pin theme to %s: checkout failed (%w), fetch also failed (%w)", commit[:12], err, fetchErr)
+	if err := gitCmd(cacheDir, "checkout", commit).Run(); err != nil {
+		if fetchErr := gitCmd(cacheDir, "fetch", "--depth=1", "origin", commit).Run(); fetchErr != nil {
+			return fmt.Errorf("pin theme to %s: checkout (%w), fetch (%w)", commit[:12], err, fetchErr)
 		}
-		if err := gitCmd(themePath, "checkout", commit).Run(); err != nil { //nolint:gosec // retry after fetch
+		if err := gitCmd(cacheDir, "checkout", commit).Run(); err != nil {
 			return fmt.Errorf("pin theme to %s: %w", commit[:12], err)
 		}
 	}
 
 	return nil
+}
+
+// installTheme copies the cached theme into the site's themes/ directory.
+func (h *HugoEngine) installTheme(sitePath string) error {
+	if err := h.ensureThemeCache(); err != nil {
+		return err
+	}
+
+	dst := filepath.Join(sitePath, "themes", "hugo-book")
+	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
+		return fmt.Errorf("create themes dir: %w", err)
+	}
+
+	// Copy theme files (excluding .git) from cache to site
+	return copyDir(themeCacheDir(), dst)
+}
+
+// copyDir recursively copies src to dst, skipping .git directories.
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+
+		// Skip .git directory
+		if info.IsDir() && info.Name() == ".git" {
+			return filepath.SkipDir
+		}
+
+		target := filepath.Join(dst, rel)
+
+		if info.IsDir() {
+			return os.MkdirAll(target, 0o750)
+		}
+
+		data, err := os.ReadFile(path) //nolint:gosec // copying from known cache dir
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode())
+	})
 }

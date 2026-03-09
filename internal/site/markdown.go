@@ -45,7 +45,7 @@ func (m *MarkdownEngine) Init(_ context.Context, opts InitOpts) error {
 	}
 
 	// Write .gitignore
-	gitignore := "# bragctl generated (overwritten on each ai launch)\nautogen-context.md\nCLAUDE.md\nGEMINI.md\n.cursorrules\n"
+	gitignore := "# bragctl generated (overwritten on each ai launch)\nautogen-context.md\nCLAUDE.md\nGEMINI.md\n.cursorrules\n\n# MCP config\n.mcp.json\n.claude/\n.cursor/\n.gemini/\n"
 	if err := os.WriteFile(filepath.Join(opts.Path, ".gitignore"), []byte(gitignore), 0o644); err != nil { //nolint:gosec // config file
 		return fmt.Errorf("write .gitignore: %w", err)
 	}

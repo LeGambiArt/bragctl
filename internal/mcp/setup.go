@@ -35,7 +35,10 @@ func Setup(assistant, sitePath, command string, args []string) error {
 
 	switch assistant {
 	case "claude":
-		return writeJSON(filepath.Join(sitePath, ".mcp.json"), cfg)
+		if err := writeJSON(filepath.Join(sitePath, ".mcp.json"), cfg); err != nil {
+			return err
+		}
+		return writeClaudeSettings(sitePath)
 	case "cursor":
 		dir := filepath.Join(sitePath, ".cursor")
 		if err := os.MkdirAll(dir, 0o750); err != nil {
@@ -53,6 +56,7 @@ func Setup(assistant, sitePath, command string, args []string) error {
 func Remove(assistant, sitePath string) error {
 	switch assistant {
 	case "claude":
+		_ = os.Remove(filepath.Join(sitePath, ".claude", "settings.local.json"))
 		return os.Remove(filepath.Join(sitePath, ".mcp.json"))
 	case "cursor":
 		return os.Remove(filepath.Join(sitePath, ".cursor", "mcp.json"))
@@ -70,6 +74,18 @@ func writeJSON(path string, v any) error {
 	}
 	data = append(data, '\n')
 	return os.WriteFile(path, data, 0o644) //nolint:gosec // config file
+}
+
+func writeClaudeSettings(sitePath string) error {
+	dir := filepath.Join(sitePath, ".claude")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return err
+	}
+	settings := map[string]any{
+		"enabledMcpjsonServers":      []string{"what-the-mcp"},
+		"enableAllProjectMcpServers": true,
+	}
+	return writeJSON(filepath.Join(dir, "settings.local.json"), settings)
 }
 
 func writeGeminiConfig(sitePath string, cfg Config) error {

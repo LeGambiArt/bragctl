@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ai"
 	"gopkg.in/yaml.v3"
 )
 
@@ -50,24 +51,9 @@ func (m *MarkdownEngine) Init(_ context.Context, opts InitOpts) error {
 		return fmt.Errorf("write .gitignore: %w", err)
 	}
 
-	// Create context.d/ with starter file
-	ctxDir := filepath.Join(opts.Path, "context.d")
-	if err := os.MkdirAll(ctxDir, 0o750); err != nil {
-		return fmt.Errorf("create context.d: %w", err)
-	}
-	ctxExample := `# Custom Context
-
-Add your custom instructions here. This file is never overwritten
-by bragctl — it persists across regenerations.
-
-Examples of what to put here:
-- Team conventions and project names
-- Preferred writing style for brag entries
-- JQL queries you use frequently
-- Sprint naming patterns
-`
-	if err := os.WriteFile(filepath.Join(ctxDir, "example.md"), []byte(ctxExample), 0o644); err != nil { //nolint:gosec // user content
-		return fmt.Errorf("write context.d/example.md: %w", err)
+	// Render context.d/ templates with site data
+	if err := ai.RenderContextTemplates(opts.Path, opts.Author, "markdown", opts.Title); err != nil {
+		return fmt.Errorf("render context templates: %w", err)
 	}
 
 	// Write a sample first post

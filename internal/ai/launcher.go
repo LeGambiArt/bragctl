@@ -16,6 +16,94 @@ import (
 //go:embed templates/ai-spec.md
 var aiSpecFS embed.FS
 
+//go:embed templates/context.d/*.md
+var contextTemplatesFS embed.FS
+
+// ContextTemplate describes a context.d template with its default state.
+type ContextTemplate struct {
+	Name    string // e.g. "persona"
+	File    string // e.g. "persona.md"
+	Enabled bool   // default enabled/disabled
+}
+
+// DefaultContextTemplates returns the list of context templates
+// shipped with bragctl and their default enabled state.
+func DefaultContextTemplates() []ContextTemplate {
+	return []ContextTemplate{
+		{Name: "persona", File: "persona.md", Enabled: true},
+		{Name: "brag-rules", File: "brag-rules.md", Enabled: true},
+		{Name: "startup", File: "startup.md", Enabled: true},
+		{Name: "shutdown", File: "shutdown.md", Enabled: true},
+		{Name: "notes", File: "notes.md", Enabled: true},
+		{Name: "adhd", File: "adhd.md", Enabled: false},
+	}
+}
+
+// contextData is the template rendering context.
+type contextData struct {
+	Author string
+	Engine string
+	Title  string
+}
+
+// RenderContextTemplates renders all context.d templates into the site's
+// context.d/ directory. Disabled templates get .md.disabled extension.
+// Existing files are NOT overwritten — only missing files are created.
+func RenderContextTemplates(sitePath, author, engine, title string) error {
+	ctxDir := filepath.Join(sitePath, "context.d")
+	if err := os.MkdirAll(ctxDir, 0o750); err != nil {
+		return fmt.Errorf("create context.d: %w", err)
+	}
+
+	data := contextData{Author: author, Engine: engine, Title: title}
+
+	for _, ct := range DefaultContextTemplates() {
+		outName := ct.File
+		if !ct.Enabled {
+			outName += ".disabled"
+		}
+		outPath := filepath.Join(ctxDir, outName)
+
+		// Also check the opposite state — if user toggled it, don't recreate
+		altName := ct.File
+		if ct.Enabled {
+			altName += ".disabled"
+		}
+		altPath := filepath.Join(ctxDir, altName)
+
+		// Skip if either version exists
+		if fileExists(outPath) || fileExists(altPath) {
+			continue
+		}
+
+		tmplContent, err := contextTemplatesFS.ReadFile("templates/context.d/" + ct.File)
+		if err != nil {
+			return fmt.Errorf("read template %s: %w", ct.File, err)
+		}
+
+		tmpl, err := template.New(ct.Name).Parse(string(tmplContent))
+		if err != nil {
+			return fmt.Errorf("parse template %s: %w", ct.File, err)
+		}
+
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, data); err != nil {
+			return fmt.Errorf("render template %s: %w", ct.File, err)
+		}
+
+		if err := os.WriteFile(outPath, buf.Bytes(), 0o644); err != nil { //nolint:gosec // user content
+			return fmt.Errorf("write %s: %w", outName, err)
+		}
+	}
+
+	return nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 // Assistant represents a supported AI coding assistant.
 type Assistant struct {
 	Name        string

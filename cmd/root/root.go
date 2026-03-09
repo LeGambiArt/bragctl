@@ -21,6 +21,9 @@ func New(version, buildDate string) *cobra.Command {
 It supports Hugo and plain Markdown engines, and integrates
 with AI assistants (Claude, Cursor, Gemini) via MCP.`,
 		SilenceUsage: true,
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			return config.EnsureDirs()
+		},
 	}
 
 	rootCmd.AddCommand(versionCmd(version, buildDate))

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -143,9 +144,7 @@ func StartBackground(siteName, sitePath string, opts ServeOpts) error {
 		"--bind", opts.Bind,
 	}
 
-	cmd := gitCmd(".", self) // reuse gitCmd for clean env (no GIT_DIR leak)
-	cmd.Args = append([]string{self}, args...)
-	cmd.Dir = ""
+	cmd := exec.Command(self, args...) //nolint:gosec // re-exec ourselves
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}

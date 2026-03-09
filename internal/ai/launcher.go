@@ -3,12 +3,18 @@
 package ai
 
 import (
+	"bytes"
+	"embed"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 )
+
+//go:embed templates/ai-spec.md
+var aiSpecFS embed.FS
 
 // Assistant represents a supported AI coding assistant.
 type Assistant struct {
@@ -69,22 +75,25 @@ func Launch(assistant Assistant, sitePath string) error {
 	return cmd.Run()
 }
 
-// autogenFile is the single source context file that AI-specific
-// files symlink to.
-const autogenFile = "autogen-context.md"
+// aiSpecFile is the rendered template that AI-specific files symlink to.
+const aiSpecFile = "ai-spec.md"
 
-// WriteContext generates autogen-context.md and creates symlinks
-// for all AI assistants (CLAUDE.md, GEMINI.md, .cursorrules).
-func WriteContext(_ Assistant, sitePath, siteName, engineName string) error {
-	content := generateContext(siteName, engineName)
-	autogenPath := filepath.Join(sitePath, autogenFile)
-	if err := os.WriteFile(autogenPath, []byte(content), 0o644); err != nil { //nolint:gosec // generated context
-		return fmt.Errorf("write %s: %w", autogenFile, err)
+// WriteContext renders ai-spec.md from the embedded template and creates
+// symlinks for all AI assistants (CLAUDE.md, GEMINI.md, .cursorrules).
+func WriteContext(_ Assistant, sitePath, _ /* siteName */, engineName string) error {
+	content, err := renderAISpec(engineName)
+	if err != nil {
+		return fmt.Errorf("render ai-spec: %w", err)
+	}
+
+	specPath := filepath.Join(sitePath, aiSpecFile)
+	if err := os.WriteFile(specPath, []byte(content), 0o644); err != nil { //nolint:gosec // generated context
+		return fmt.Errorf("write %s: %w", aiSpecFile, err)
 	}
 
 	// Create symlinks for all assistants
 	for _, a := range AllAssistants() {
-		if err := ensureSymlink(sitePath, a.ContextFile, autogenFile); err != nil {
+		if err := ensureSymlink(sitePath, a.ContextFile, aiSpecFile); err != nil {
 			return fmt.Errorf("symlink %s: %w", a.ContextFile, err)
 		}
 	}
@@ -106,41 +115,27 @@ func ensureSymlink(dir, name, target string) error {
 	return os.Symlink(target, linkPath)
 }
 
-func generateContext(siteName, engineName string) string {
-	var b strings.Builder
+type aiSpecData struct {
+	Engine string
+}
 
-	b.WriteString("# Brag Document Assistant\n\n")
-	b.WriteString(fmt.Sprintf("Site: %s | Engine: %s\n\n", siteName, engineName))
-
-	b.WriteString("## Site Structure\n\n")
-	switch engineName {
-	case "hugo":
-		b.WriteString("Posts are in `content/posts/`.\n")
-		b.WriteString("Use Hugo frontmatter format.\n")
-		b.WriteString("Run `hugo server -D` to preview.\n")
-	case "markdown":
-		b.WriteString("Posts are in `posts/`.\n")
-		b.WriteString("Use YAML frontmatter: title, date, tags, impact.\n")
-		b.WriteString("Files are plain markdown — no build step needed.\n")
+func renderAISpec(engineName string) (string, error) {
+	tmplContent, err := aiSpecFS.ReadFile("templates/ai-spec.md")
+	if err != nil {
+		return "", fmt.Errorf("read embedded template: %w", err)
 	}
 
-	b.WriteString("\n## Writing Brag Entries\n\n")
-	b.WriteString("Each post should capture a professional accomplishment:\n")
-	b.WriteString("- What you did (the action)\n")
-	b.WriteString("- Why it matters (the impact)\n")
-	b.WriteString("- Who was involved (collaboration)\n")
-	b.WriteString("- Quantify when possible (metrics, numbers)\n")
+	tmpl, err := template.New("ai-spec").Parse(string(tmplContent))
+	if err != nil {
+		return "", fmt.Errorf("parse template: %w", err)
+	}
 
-	b.WriteString("\n## Additional Context\n\n")
-	b.WriteString("Read all files in `context.d/` for workflow preferences, team\n")
-	b.WriteString("conventions, and custom instructions specific to this site.\n")
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, aiSpecData{Engine: engineName}); err != nil {
+		return "", fmt.Errorf("execute template: %w", err)
+	}
 
-	b.WriteString("\n## MCP Tools\n\n")
-	b.WriteString("This project has MCP tools available via the what-the-mcp server.\n")
-	b.WriteString("Before using a plugin's tools for the first time, read its MCP\n")
-	b.WriteString("resource for tool-specific guidelines and usage patterns.\n")
-
-	return b.String()
+	return buf.String(), nil
 }
 
 // AssistantNames returns the names of all supported assistants (for completions).

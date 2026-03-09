@@ -14,7 +14,7 @@ func TestWriteContext(t *testing.T) {
 	}
 
 	// autogen-context.md should exist
-	autogenPath := filepath.Join(dir, autogenFile)
+	autogenPath := filepath.Join(dir, aiSpecFile)
 	content, err := os.ReadFile(autogenPath) //nolint:gosec // test file
 	if err != nil {
 		t.Fatalf("read autogen-context.md: %v", err)
@@ -26,11 +26,10 @@ func TestWriteContext(t *testing.T) {
 	// Check content includes key sections
 	s := string(content)
 	for _, want := range []string{
-		"my-site",
-		"markdown",
 		"context.d/",
 		"MCP Tools",
 		"Writing Brag Entries",
+		"posts/",
 	} {
 		if !contains(s, want) {
 			t.Errorf("content missing %q", want)
@@ -45,8 +44,8 @@ func TestWriteContext(t *testing.T) {
 			t.Errorf("%s: not a symlink: %v", a.ContextFile, err)
 			continue
 		}
-		if target != autogenFile {
-			t.Errorf("%s: symlink target = %q, want %q", a.ContextFile, target, autogenFile)
+		if target != aiSpecFile {
+			t.Errorf("%s: symlink target = %q, want %q", a.ContextFile, target, aiSpecFile)
 		}
 
 		// Reading the symlink should give the same content
@@ -79,8 +78,8 @@ func TestWriteContextReplacesExistingFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("not a symlink after WriteContext: %v", err)
 	}
-	if target != autogenFile {
-		t.Errorf("symlink target = %q, want %q", target, autogenFile)
+	if target != aiSpecFile {
+		t.Errorf("symlink target = %q, want %q", target, aiSpecFile)
 	}
 }
 

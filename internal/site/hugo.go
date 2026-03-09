@@ -108,6 +108,22 @@ func (h *HugoEngine) Init(_ context.Context, opts InitOpts) error {
 	return nil
 }
 
+// Serve runs hugo server for live preview.
+func (h *HugoEngine) Serve(ctx context.Context, sitePath string, opts ServeOpts) error {
+	hugoCmd, err := h.cfg.ResolveHugoCommand()
+	if err != nil {
+		return err
+	}
+
+	args := []string{"server", "-D", "--port", fmt.Sprintf("%d", opts.Port)}
+	cmd := exec.CommandContext(ctx, hugoCmd, args...) //nolint:gosec // resolved binary + user port
+	cmd.Dir = sitePath
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	return cmd.Run()
+}
+
 // Validate checks that a directory is a valid Hugo site.
 func (h *HugoEngine) Validate(sitePath string) error {
 	cfg, err := loadConfig(sitePath)

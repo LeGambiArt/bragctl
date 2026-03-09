@@ -3,6 +3,7 @@ package site
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -77,6 +78,28 @@ accomplishments, contributions, and impact.
 		return err
 	}
 
+	return nil
+}
+
+// Serve starts a simple HTTP server that renders markdown posts.
+func (m *MarkdownEngine) Serve(ctx context.Context, sitePath string, opts ServeOpts) error {
+	addr := fmt.Sprintf(":%d", opts.Port)
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           newMarkdownServer(sitePath),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	go func() {
+		<-ctx.Done()
+		_ = srv.Close()
+	}()
+
+	fmt.Printf("Serving markdown site at http://localhost:%d\n", opts.Port)
+	fmt.Println("Press Ctrl+C to stop")
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return fmt.Errorf("serve: %w", err)
+	}
 	return nil
 }
 

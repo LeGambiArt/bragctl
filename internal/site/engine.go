@@ -16,6 +16,15 @@ type Engine interface {
 
 	// Validate checks that a site directory looks correct.
 	Validate(sitePath string) error
+
+	// Serve starts a dev server for previewing the site.
+	Serve(ctx context.Context, sitePath string, opts ServeOpts) error
+}
+
+// ServeOpts holds parameters for running a dev server.
+type ServeOpts struct {
+	Port int
+	Open bool // open browser automatically
 }
 
 // InitOpts holds parameters for creating a new site.

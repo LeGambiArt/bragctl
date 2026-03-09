@@ -35,6 +35,7 @@ with AI assistants (Claude, Cursor, Gemini) via MCP.`,
 	rootCmd.AddCommand(mcpSetupCmd())
 	rootCmd.AddCommand(contextCmd())
 	rootCmd.AddCommand(configCmd())
+	rootCmd.AddCommand(serveCmd())
 
 	return rootCmd
 }
@@ -177,6 +178,33 @@ func listCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func serveCmd() *cobra.Command {
+	var port int
+
+	cmd := &cobra.Command{
+		Use:               "serve [site-name]",
+		Short:             "Start a dev server to preview a site",
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeSiteNames,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+			s, err := resolveSite(cfg, args)
+			if err != nil {
+				return err
+			}
+			return s.Engine.Serve(cmd.Context(), s.Path, site.ServeOpts{
+				Port: port,
+			})
+		},
+	}
+
+	cmd.Flags().IntVarP(&port, "port", "p", 1313, "Port to serve on")
+	return cmd
 }
 
 func currentUser() string {

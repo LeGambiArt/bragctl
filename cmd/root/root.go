@@ -9,7 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeGambiArt/bragctl/internal/ai"
 	"github.com/LeGambiArt/bragctl/internal/config"
+	"github.com/LeGambiArt/bragctl/internal/mcp"
 	"github.com/LeGambiArt/bragctl/internal/site"
 	"github.com/LeGambiArt/bragctl/internal/ui"
 )
@@ -76,9 +78,13 @@ func initCmd() *cobra.Command {
 				return fmt.Errorf("site %q already exists at %s (use --force to re-initialize)", name, sitePath)
 			}
 
-			if engine == "" {
+			// Prompt for engine if not provided
+			if engine == "" && ui.IsTerminal() && !cmd.Flags().Changed("engine") {
+				engine = ui.PromptSelect("Site engine", []string{"markdown", "hugo"}, "markdown")
+			} else if engine == "" {
 				engine = "markdown"
 			}
+
 			if title == "" {
 				title = "My Brag Document"
 			}
@@ -131,6 +137,24 @@ func initCmd() *cobra.Command {
 					return fmt.Errorf("save config: %w", err)
 				}
 				ui.Info("Set as default site")
+			}
+
+			// Auto MCP setup
+			mcpAssistant := aiPref
+			if mcpAssistant == "auto" || mcpAssistant == "" {
+				if detected, err := ai.Detect(); err == nil {
+					mcpAssistant = detected.Name
+				} else {
+					mcpAssistant = ""
+				}
+			}
+			if mcpAssistant != "" {
+				if err := mcp.Setup(mcpAssistant, s.Path, cfg.MCPCommand(), cfg.MCPArgs()); err != nil {
+					ui.Dim("MCP setup skipped: %v", err)
+					ui.Dim("  Run 'bragctl mcp-setup %s' later to configure", name)
+				} else {
+					ui.Success("MCP configured for %s", mcpAssistant)
+				}
 			}
 
 			fmt.Println()

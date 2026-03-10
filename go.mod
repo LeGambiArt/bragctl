@@ -4,16 +4,14 @@ go 1.24.3
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/LeGambiArt/oauth2flow v0.1.0
 	github.com/charmbracelet/huh v1.0.0
 	github.com/charmbracelet/huh/spinner v0.0.0-20260223110133-9dc45e34a40b
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/spf13/cobra v1.10.2
 	github.com/yuin/goldmark v1.7.16
-	github.com/LeGambiArt/oauth2flow v0.1.0
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-replace github.com/LeGambiArt/oauth2flow => ../oauth2flow
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect

@@ -16,12 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check out oauth2flow
-        uses: actions/checkout@v4
-        with:
-          repository: LeGambiArt/oauth2flow
-          path: oauth2flow
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:

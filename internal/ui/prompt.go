@@ -37,6 +37,35 @@ func PromptSelect(title string, options []string, defaultVal string) string {
 	return value
 }
 
+// PromptConfirm displays a message and waits for the user to press Enter.
+func PromptConfirm(msg string) {
+	var confirmed bool
+	_ = huh.NewConfirm().
+		Title(msg).
+		Affirmative("Continue").
+		Negative("").
+		Value(&confirmed).
+		Run()
+}
+
+// PromptMultiSelect asks the user to select multiple items from a list.
+// All items are selected by default. Returns the selected values.
+func PromptMultiSelect(title string, options []string) []string {
+	selected := make([]string, len(options))
+	copy(selected, options)
+
+	opts := make([]huh.Option[string], len(options))
+	for i, o := range options {
+		opts[i] = huh.NewOption(o, o)
+	}
+	_ = huh.NewMultiSelect[string]().
+		Title(title).
+		Options(opts...).
+		Value(&selected).
+		Run()
+	return selected
+}
+
 // Spin runs fn while showing a spinner with the given title.
 func Spin(title string, fn func() error) error {
 	var fnErr error

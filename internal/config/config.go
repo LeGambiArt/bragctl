@@ -85,6 +85,12 @@ func (c *Config) MCPArgs() []string {
 	return args
 }
 
+// CredentialsDir returns the credentials directory for a given provider.
+// e.g. CredentialsDir("google") → ~/.bragctl/credentials/google/
+func CredentialsDir(provider string) string {
+	return filepath.Join(BaseDir(), "credentials", provider)
+}
+
 // BaseDir returns the bragctl base directory.
 // Uses BRAGCTL_HOME env var, falls back to ~/.bragctl.
 func BaseDir() string {

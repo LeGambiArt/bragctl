@@ -3,7 +3,7 @@ package site
 import (
 	"testing"
 
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
+	"github.com/LeGambiArt/bragctl/internal/config"
 )
 
 func TestNewManagerRegistersEngines(t *testing.T) {

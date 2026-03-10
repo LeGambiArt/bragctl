@@ -10,8 +10,8 @@ import (
 	"strings"
 	"syscall"
 
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
+	"github.com/LeGambiArt/bragctl/internal/config"
+	"github.com/LeGambiArt/bragctl/internal/ui"
 )
 
 const pidFileName = ".server.pid"

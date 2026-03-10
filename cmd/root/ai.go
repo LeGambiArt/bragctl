@@ -5,11 +5,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ai"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/mcp"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/site"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
+	"github.com/LeGambiArt/bragctl/internal/ai"
+	"github.com/LeGambiArt/bragctl/internal/config"
+	"github.com/LeGambiArt/bragctl/internal/mcp"
+	"github.com/LeGambiArt/bragctl/internal/site"
+	"github.com/LeGambiArt/bragctl/internal/ui"
 )
 
 func aiCmd() *cobra.Command {

@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/site"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
+	"github.com/LeGambiArt/bragctl/internal/config"
+	"github.com/LeGambiArt/bragctl/internal/site"
+	"github.com/LeGambiArt/bragctl/internal/ui"
 )
 
 func configCmd() *cobra.Command {

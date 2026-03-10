@@ -61,15 +61,15 @@ func (c *Config) ResolveHugoCommand() (string, error) {
 	return "", fmt.Errorf("hugo not found: install Hugo or set [hugo] command in %s", Path())
 }
 
-// MCPCommand returns the resolved what-the-mcp-ng command.
+// MCPCommand returns the resolved wtmcp command.
 func (c *Config) MCPCommand() string {
 	if c.MCP.Command != "" {
 		return c.MCP.Command
 	}
-	return "what-the-mcp-ng"
+	return "wtmcp"
 }
 
-// MCPWorkdir returns the resolved what-the-mcp workdir.
+// MCPWorkdir returns the resolved wtmcp workdir.
 func (c *Config) MCPWorkdir() string {
 	if c.MCP.Workdir != "" {
 		return c.MCP.Workdir

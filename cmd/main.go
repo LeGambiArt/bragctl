@@ -4,9 +4,9 @@ package main
 import (
 	"os"
 
-	"gitlab.cee.redhat.com/bragctl/bragctl/cmd/root"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
+	"github.com/LeGambiArt/bragctl/cmd/root"
+	"github.com/LeGambiArt/bragctl/internal/config"
+	"github.com/LeGambiArt/bragctl/internal/ui"
 )
 
 // Version and BuildDate are set via ldflags at build time.

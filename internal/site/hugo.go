@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ai"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
+	"github.com/LeGambiArt/bragctl/internal/ai"
+	"github.com/LeGambiArt/bragctl/internal/config"
+	"github.com/LeGambiArt/bragctl/internal/ui"
 )
 
 //go:embed templates/hugo/*

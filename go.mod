@@ -1,4 +1,4 @@
-module gitlab.cee.redhat.com/bragctl/bragctl
+module github.com/LeGambiArt/bragctl
 
 go 1.24.3
 
@@ -9,11 +9,11 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/spf13/cobra v1.10.2
 	github.com/yuin/goldmark v1.7.16
-	gitlab.cee.redhat.com/bragctl/oauth2flow v0.1.0
+	github.com/LeGambiArt/oauth2flow v0.1.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace gitlab.cee.redhat.com/bragctl/oauth2flow => ../oauth2flow
+replace github.com/LeGambiArt/oauth2flow => ../oauth2flow
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ai"
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/ui"
+	"github.com/LeGambiArt/bragctl/internal/ai"
+	"github.com/LeGambiArt/bragctl/internal/ui"
 	"gopkg.in/yaml.v3"
 )
 

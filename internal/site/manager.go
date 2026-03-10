@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
+	"github.com/LeGambiArt/bragctl/internal/config"
 )
 
 // Site represents a managed brag document site.

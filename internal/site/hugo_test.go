@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.cee.redhat.com/bragctl/bragctl/internal/config"
+	"github.com/LeGambiArt/bragctl/internal/config"
 )
 
 func TestHugoEngineName(t *testing.T) {

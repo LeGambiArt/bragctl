@@ -193,7 +193,7 @@ func gitInit(dir string) error {
 	if err := gitCmd(dir, "add", ".").Run(); err != nil {
 		return fmt.Errorf("git add: %w", err)
 	}
-	if err := gitCmd(dir, "commit", "-m", "Initial bragctl site").Run(); err != nil {
+	if err := gitCmd(dir, "-c", "commit.gpgsign=false", "commit", "-m", "Initial bragctl site").Run(); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
 	return nil

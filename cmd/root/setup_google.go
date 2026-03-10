@@ -100,7 +100,10 @@ func runGoogleSetup(ctx context.Context, credentialsFile string) error {
 	for i, s := range googleServices {
 		serviceNames[i] = s.Name
 	}
-	selected := ui.PromptMultiSelect("Which services to authorize?", serviceNames)
+	selected, err := ui.PromptMultiSelect("Which services to authorize?", serviceNames)
+	if err != nil {
+		return err
+	}
 	if len(selected) == 0 {
 		ui.Dim("No services selected, skipping authorization.")
 		return nil
@@ -149,44 +152,60 @@ func runGoogleSetup(ctx context.Context, credentialsFile string) error {
 func runGoogleConsoleSteps(clientCreds string) error {
 	// Step 1: Create project
 	ui.Bold("Step 1: Create or select a Google Cloud project")
-	ui.Dim("  Open the Google Cloud Console and create a project")
-	ui.Dim("  (or select an existing one).")
-	fmt.Println()
-	ui.PromptConfirm("Press Enter when your project is ready")
+	openBrowserStep("https://console.cloud.google.com/projectcreate")
+	if err := ui.PromptConfirm("Press Enter when your project is ready"); err != nil {
+		return err
+	}
 
 	// Step 2: Enable APIs
 	fmt.Println()
 	ui.Bold("Step 2: Enable required APIs")
-	ui.Dim("  In your project, enable these APIs:")
-	ui.Dim("  - Google Calendar API")
-	ui.Dim("  - Gmail API")
-	ui.Dim("  - Google Drive API")
-	fmt.Println()
-	ui.PromptConfirm("Press Enter when APIs are enabled")
+	openBrowserStep("https://console.cloud.google.com/apis/enableflow?apiid=calendar-json.googleapis.com,gmail.googleapis.com,drive.googleapis.com")
+	if err := ui.PromptConfirm("Press Enter when APIs are enabled"); err != nil {
+		return err
+	}
 
 	// Step 3: OAuth consent screen
 	fmt.Println()
 	ui.Bold("Step 3: Configure OAuth consent screen")
-	ui.Dim("  - Choose \"External\" user type")
-	ui.Dim("  - Fill in the required fields (app name, email)")
-	ui.Dim("  - Add your Google email as a test user")
-	fmt.Println()
-	ui.PromptConfirm("Press Enter when consent screen is configured")
+	ui.Dim("  In the Auth section (left panel):")
+	ui.Dim("  - Branding: set app name and support email")
+	ui.Dim("  - Audience: choose \"External\"")
+	ui.Dim("    (if app is in Testing mode, add your email as test user)")
+	ui.Dim("  If already configured, you can skip this step.")
+	openBrowserStep("https://console.cloud.google.com/auth/overview")
+	if err := ui.PromptConfirm("Press Enter when consent screen is configured"); err != nil {
+		return err
+	}
 
 	// Step 4: Create credentials
 	fmt.Println()
-	ui.Bold("Step 4: Create OAuth credentials")
-	ui.Dim("  - Go to Credentials > Create Credentials > OAuth client ID")
+	ui.Bold("Step 4: Create OAuth client")
+	ui.Dim("  In the Auth section (left panel):")
+	ui.Dim("  - Clients > Create client")
 	ui.Dim("  - Choose \"Desktop application\"")
 	ui.Dim("  - Download the JSON file")
-	fmt.Println()
+	openBrowserStep("https://console.cloud.google.com/auth/clients")
 
-	path := ui.PromptInput("Path to downloaded credentials JSON", "")
+	path, err := ui.PromptInputE("Path to downloaded credentials JSON", "")
+	if err != nil {
+		return err
+	}
 	if path == "" {
 		return fmt.Errorf("credentials file path is required")
 	}
 
 	return copyCredentialsFile(path, clientCreds)
+}
+
+func openBrowserStep(url string) {
+	if err := oauth2flow.OpenBrowser(url); err != nil {
+		// Browser failed to open — show the URL so the user can copy it
+		ui.Dim("  Open: %s", url)
+	} else {
+		ui.Info("  Opening %s", url)
+	}
+	fmt.Println()
 }
 
 func copyCredentialsFile(src, dst string) error {

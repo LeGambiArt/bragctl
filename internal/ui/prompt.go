@@ -38,9 +38,10 @@ func PromptSelect(title string, options []string, defaultVal string) string {
 }
 
 // PromptConfirm displays a message and waits for the user to press Enter.
-func PromptConfirm(msg string) {
+// Returns an error if the user cancels (e.g. Ctrl-C).
+func PromptConfirm(msg string) error {
 	var confirmed bool
-	_ = huh.NewConfirm().
+	return huh.NewConfirm().
 		Title(msg).
 		Affirmative("Continue").
 		Negative("").
@@ -50,7 +51,8 @@ func PromptConfirm(msg string) {
 
 // PromptMultiSelect asks the user to select multiple items from a list.
 // All items are selected by default. Returns the selected values.
-func PromptMultiSelect(title string, options []string) []string {
+// Returns an error if the user cancels (e.g. Ctrl-C).
+func PromptMultiSelect(title string, options []string) ([]string, error) {
 	selected := make([]string, len(options))
 	copy(selected, options)
 
@@ -58,12 +60,22 @@ func PromptMultiSelect(title string, options []string) []string {
 	for i, o := range options {
 		opts[i] = huh.NewOption(o, o)
 	}
-	_ = huh.NewMultiSelect[string]().
+	err := huh.NewMultiSelect[string]().
 		Title(title).
 		Options(opts...).
 		Value(&selected).
 		Run()
-	return selected
+	return selected, err
+}
+
+// PromptInputE is like PromptInput but returns an error on cancel.
+func PromptInputE(title, defaultVal string) (string, error) {
+	value := defaultVal
+	err := huh.NewInput().
+		Title(title).
+		Value(&value).
+		Run()
+	return value, err
 }
 
 // Spin runs fn while showing a spinner with the given title.

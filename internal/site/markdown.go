@@ -162,6 +162,16 @@ func (m *MarkdownEngine) Validate(sitePath string) error {
 	return nil
 }
 
+// SaveConfig writes the site config to _config.yaml.
+func SaveConfig(sitePath string, cfg *Config) error {
+	return writeConfig(sitePath, cfg)
+}
+
+// LoadConfig reads the site config from _config.yaml.
+func LoadConfig(sitePath string) (*Config, error) {
+	return loadConfig(sitePath)
+}
+
 func writeConfig(sitePath string, cfg *Config) error {
 	data, err := yaml.Marshal(cfg)
 	if err != nil {

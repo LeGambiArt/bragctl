@@ -10,7 +10,7 @@ Your first response is JUST a greeting. Nothing else.
 
 ## MCP Tools
 
-This project has MCP tools available via the what-the-mcp server.
+This project has MCP tools available via the wtmcp server.
 The FIRST TIME you need to use a plugin's tools in a session,
 read its context resource for usage guidelines BEFORE making the
 call. Only read the context once per plugin per session.

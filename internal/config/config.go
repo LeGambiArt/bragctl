@@ -32,17 +32,17 @@ type HugoConfig struct {
 	ThemeCommit string `toml:"theme_commit,omitempty"`
 }
 
-// MCPConfig describes how to launch what-the-mcp.
+// MCPConfig describes how to launch wtmcp.
 type MCPConfig struct {
-	// Command is the path to the what-the-mcp binary.
-	// Default: "what-the-mcp" (from PATH).
+	// Command is the path to the wtmcp binary.
+	// Default: "wtmcp" (from PATH).
 	Command string `toml:"command,omitempty"`
 
-	// Workdir is the what-the-mcp working directory.
+	// Workdir is the wtmcp working directory.
 	// Default: same as bragctl BaseDir().
 	Workdir string `toml:"workdir,omitempty"`
 
-	// Args are extra flags passed to what-the-mcp.
+	// Args are extra flags passed to wtmcp.
 	Args []string `toml:"args,omitempty"`
 }
 
@@ -77,7 +77,7 @@ func (c *Config) MCPWorkdir() string {
 	return BaseDir()
 }
 
-// MCPArgs returns the full argument list for what-the-mcp,
+// MCPArgs returns the full argument list for wtmcp,
 // including --workdir and any extra configured args.
 func (c *Config) MCPArgs() []string {
 	args := []string{"--workdir", c.MCPWorkdir()}

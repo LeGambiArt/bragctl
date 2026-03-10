@@ -21,12 +21,12 @@ type ServerConfig struct {
 }
 
 // Setup writes MCP configuration for an AI assistant at a site directory.
-// command is the what-the-mcp binary path, args are the full argument list
+// command is the wtmcp binary path, args are the full argument list
 // (including --workdir and any extras).
 func Setup(assistant, sitePath, command string, args []string) error {
 	cfg := Config{
 		MCPServers: map[string]ServerConfig{
-			"what-the-mcp": {
+			"wtmcp": {
 				Command: command,
 				Args:    args,
 			},
@@ -82,7 +82,7 @@ func writeClaudeSettings(sitePath string) error {
 		return err
 	}
 	settings := map[string]any{
-		"enabledMcpjsonServers":      []string{"what-the-mcp"},
+		"enabledMcpjsonServers":      []string{"wtmcp"},
 		"enableAllProjectMcpServers": true,
 	}
 	return writeJSON(filepath.Join(dir, "settings.local.json"), settings)

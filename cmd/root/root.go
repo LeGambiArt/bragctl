@@ -139,23 +139,13 @@ func initCmd() *cobra.Command {
 				ui.Info("Set as default site")
 			}
 
-			// Auto MCP setup
-			mcpAssistant := aiPref
-			if mcpAssistant == "auto" || mcpAssistant == "" {
-				if detected, err := ai.Detect(); err == nil {
-					mcpAssistant = detected.Name
-				} else {
-					mcpAssistant = ""
+			// Auto MCP setup for all assistants
+			for _, assistant := range ai.AssistantNames() {
+				if err := mcp.Setup(assistant, s.Path, cfg.MCPCommand(), cfg.MCPArgs()); err != nil {
+					ui.Dim("MCP setup for %s skipped: %v", assistant, err)
 				}
 			}
-			if mcpAssistant != "" {
-				if err := mcp.Setup(mcpAssistant, s.Path, cfg.MCPCommand(), cfg.MCPArgs()); err != nil {
-					ui.Dim("MCP setup skipped: %v", err)
-					ui.Dim("  Run 'bragctl mcp-setup %s' later to configure", name)
-				} else {
-					ui.Success("MCP configured for %s", mcpAssistant)
-				}
-			}
+			ui.Success("MCP configured for all assistants")
 
 			fmt.Println()
 			ui.Dim("To start writing:")

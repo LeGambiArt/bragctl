@@ -40,16 +40,18 @@ func configShowCmd() *cobra.Command {
 				dflt = "(not set)"
 			}
 
+			// Build full MCP command line
+			mcpFull := cfg.MCPCommand()
+			for _, arg := range cfg.MCPArgs() {
+				mcpFull += " " + arg
+			}
+
 			rows := [][]string{
 				{"Config", config.Path()},
 				{"Base dir", config.BaseDir()},
 				{"Sites", config.SitesDir()},
 				{"Default site", dflt},
-				{"MCP command", cfg.MCPCommand()},
-				{"MCP workdir", cfg.MCPWorkdir()},
-			}
-			if len(cfg.MCP.Args) > 0 {
-				rows = append(rows, []string{"MCP extra args", fmt.Sprintf("%v", cfg.MCP.Args)})
+				{"MCP", mcpFull},
 			}
 			ui.PrintKeyValueTable(rows)
 

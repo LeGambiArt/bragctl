@@ -3,6 +3,7 @@ package site
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -104,5 +105,67 @@ func TestServerStateMalformed(t *testing.T) {
 	state = ReadServerState(dir)
 	if state != nil {
 		t.Error("incomplete PID file should return nil")
+	}
+}
+
+func TestServerLockingPreventsConcurrentStart(t *testing.T) {
+	dir := t.TempDir()
+
+	// Acquire lock in first goroutine
+	lock1, err := acquireServerLock(dir)
+	if err != nil {
+		t.Fatalf("first acquireServerLock: %v", err)
+	}
+	defer releaseLock(lock1)
+
+	// Try to acquire lock again (should fail immediately with EWOULDBLOCK)
+	lock2, err := acquireServerLock(dir)
+	if err == nil {
+		releaseLock(lock2)
+		t.Error("second acquireServerLock should have failed, but succeeded")
+	}
+
+	// Verify the error mentions lock being held
+	if err != nil && !strings.Contains(err.Error(), "lock held") && !strings.Contains(err.Error(), "in progress") {
+		t.Errorf("acquireServerLock error = %v, expected lock held error", err)
+	}
+}
+
+func TestServerLockReleaseAllowsReacquire(t *testing.T) {
+	dir := t.TempDir()
+
+	// Acquire and release lock
+	lock1, err := acquireServerLock(dir)
+	if err != nil {
+		t.Fatalf("first acquireServerLock: %v", err)
+	}
+	releaseLock(lock1)
+
+	// Should be able to acquire again
+	lock2, err := acquireServerLock(dir)
+	if err != nil {
+		t.Errorf("second acquireServerLock after release: %v", err)
+	}
+	releaseLock(lock2)
+}
+
+func TestServerLockFilePermissions(t *testing.T) {
+	dir := t.TempDir()
+
+	lock, err := acquireServerLock(dir)
+	if err != nil {
+		t.Fatalf("acquireServerLock: %v", err)
+	}
+	defer releaseLock(lock)
+
+	// Verify lock file has correct permissions
+	lockPath := lockFilePath(dir)
+	info, err := os.Stat(lockPath)
+	if err != nil {
+		t.Fatalf("stat lock file: %v", err)
+	}
+
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("lock file permissions = %o, want 0o600", info.Mode().Perm())
 	}
 }

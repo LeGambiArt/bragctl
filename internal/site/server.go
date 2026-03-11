@@ -14,7 +14,10 @@ import (
 	"github.com/LeGambiArt/bragctl/internal/ui"
 )
 
-const pidFileName = ".server.pid"
+const (
+	pidFileName  = ".server.pid"
+	lockFileName = ".server.lock"
+)
 
 // ServerState holds the state of a running server.
 type ServerState struct {
@@ -25,6 +28,40 @@ type ServerState struct {
 // pidFilePath returns the PID file path for a site.
 func pidFilePath(sitePath string) string {
 	return filepath.Join(sitePath, pidFileName)
+}
+
+// lockFilePath returns the lock file path for a site.
+func lockFilePath(sitePath string) string {
+	return filepath.Join(sitePath, lockFileName)
+}
+
+// acquireServerLock acquires an exclusive lock on the server lock file.
+// Returns the lock file handle which must be released by calling releaseLock().
+func acquireServerLock(sitePath string) (*os.File, error) {
+	lockPath := lockFilePath(sitePath)
+	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec // sitePath is validated
+	if err != nil {
+		return nil, fmt.Errorf("open lock file: %w", err)
+	}
+
+	// Try to acquire exclusive lock (non-blocking)
+	if err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = lockFile.Close()
+		if err == syscall.EWOULDBLOCK {
+			return nil, fmt.Errorf("another operation is already in progress (lock held)")
+		}
+		return nil, fmt.Errorf("acquire lock: %w", err)
+	}
+
+	return lockFile, nil
+}
+
+// releaseLock releases the server lock file.
+func releaseLock(lockFile *os.File) {
+	if lockFile != nil {
+		_ = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+		_ = lockFile.Close()
+	}
 }
 
 // logDir returns the logs directory.
@@ -101,6 +138,13 @@ func FindAvailablePort(startPort int) (int, error) {
 // StartBackground starts a server in the background.
 // It re-execs the current binary with --foreground, redirecting output to a log file.
 func StartBackground(siteName, sitePath string, opts ServeOpts) error {
+	// Acquire lock to prevent TOCTOU race with concurrent StartBackground calls
+	lockFile, err := acquireServerLock(sitePath)
+	if err != nil {
+		return err
+	}
+	defer releaseLock(lockFile)
+
 	// Check if already running
 	state := ReadServerState(sitePath)
 	if state.IsRunning() {
@@ -178,6 +222,13 @@ func StartBackground(siteName, sitePath string, opts ServeOpts) error {
 
 // StopServer stops a running background server.
 func StopServer(siteName, sitePath string) error {
+	// Acquire lock to prevent race with concurrent operations
+	lockFile, err := acquireServerLock(sitePath)
+	if err != nil {
+		return err
+	}
+	defer releaseLock(lockFile)
+
 	state := ReadServerState(sitePath)
 	if state == nil {
 		return fmt.Errorf("site %q is not running", siteName)

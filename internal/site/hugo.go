@@ -389,6 +389,8 @@ func (h *HugoEngine) themeCommit() string {
 // gitCmd creates a git command with a clean environment.
 // This prevents interference from parent GIT_DIR, GIT_WORK_TREE, etc.
 // when running git in a subprocess (e.g., during pre-commit hooks).
+// Also sets GIT_CONFIG_NOSYSTEM=1 to prevent system-wide git config from
+// being applied (which could contain malicious hooks, aliases, or filters).
 func gitCmd(dir string, args ...string) *exec.Cmd {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
@@ -404,6 +406,8 @@ func gitCmd(dir string, args ...string) *exec.Cmd {
 			cmd.Env = append(cmd.Env, env)
 		}
 	}
+	// Prevent system-wide git config from being applied
+	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=1")
 	return cmd
 }
 

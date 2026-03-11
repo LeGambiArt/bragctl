@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -116,6 +118,13 @@ func initCmd() *cobra.Command {
 
 			// Remove existing site if --force was used
 			if force {
+				// Defense-in-depth: verify sitePath is under sitesDir before destructive operation
+				sitesDir := filepath.Clean(config.SitesDir())
+				cleanPath := filepath.Clean(sitePath)
+				if !strings.HasPrefix(cleanPath, sitesDir+string(filepath.Separator)) && cleanPath != sitesDir {
+					return fmt.Errorf("refusing to remove path outside sites directory: %s", sitePath)
+				}
+
 				if err := os.RemoveAll(sitePath); err != nil {
 					return fmt.Errorf("remove existing site: %w", err)
 				}

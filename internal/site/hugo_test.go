@@ -651,3 +651,30 @@ func TestThemeCommitValidation(t *testing.T) {
 		t.Errorf("themeCommit() with invalid commit = %q, want default %q", commit, defaultThemeCommit)
 	}
 }
+
+func TestGitCmdHasNoSystemConfig(t *testing.T) {
+	// Verify git commands have GIT_CONFIG_NOSYSTEM=1
+	cmd := gitCmd(".", "status")
+
+	hasGitConfigNoSystem := false
+	for _, env := range cmd.Env {
+		if env == "GIT_CONFIG_NOSYSTEM=1" {
+			hasGitConfigNoSystem = true
+			break
+		}
+	}
+
+	if !hasGitConfigNoSystem {
+		t.Error("gitCmd() missing GIT_CONFIG_NOSYSTEM=1 in environment")
+	}
+
+	// Verify parent git env vars are removed
+	parentGitVars := []string{"GIT_DIR=", "GIT_WORK_TREE=", "GIT_INDEX_FILE="}
+	for _, env := range cmd.Env {
+		for _, parentVar := range parentGitVars {
+			if strings.HasPrefix(env, parentVar) {
+				t.Errorf("gitCmd() environment contains parent git var: %s", env)
+			}
+		}
+	}
+}

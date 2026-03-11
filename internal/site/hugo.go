@@ -238,7 +238,23 @@ func (h *HugoEngine) Validate(sitePath string) error {
 	return nil
 }
 
+// sanitizeTOMLValue escapes special characters in a string value for safe TOML substitution.
+// It removes or escapes characters that could break TOML structure.
+func sanitizeTOMLValue(s string) string {
+	// Replace backslash first (to avoid double-escaping)
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	// Escape double quotes (TOML strings use double quotes)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	// Remove or escape newlines (TOML strings can't contain literal newlines)
+	s = strings.ReplaceAll(s, "\n", `\n`)
+	s = strings.ReplaceAll(s, "\r", `\r`)
+	// Remove tabs (or could escape as \t)
+	s = strings.ReplaceAll(s, "\t", " ")
+	return s
+}
+
 // deployTemplate reads an embedded template and writes it with AUTHOR/TITLE substitution.
+// Values are sanitized to prevent TOML/YAML injection.
 func (h *HugoEngine) deployTemplate(src, dst, author, title string) error {
 	data, err := hugoTemplates.ReadFile(src)
 	if err != nil {
@@ -247,8 +263,9 @@ func (h *HugoEngine) deployTemplate(src, dst, author, title string) error {
 
 	now := time.Now()
 	content := string(data)
-	content = strings.ReplaceAll(content, "%%AUTHOR%%", author)
-	content = strings.ReplaceAll(content, "%%TITLE%%", title)
+	// Sanitize author and title to prevent TOML/YAML injection
+	content = strings.ReplaceAll(content, "%%AUTHOR%%", sanitizeTOMLValue(author))
+	content = strings.ReplaceAll(content, "%%TITLE%%", sanitizeTOMLValue(title))
 	content = strings.ReplaceAll(content, "%%DATE%%", now.Format("2006-01-02"))
 	content = strings.ReplaceAll(content, "%%YEAR%%", now.Format("2006"))
 	content = strings.ReplaceAll(content, "%%LONGDATE%%", now.Format("January 2, 2006"))

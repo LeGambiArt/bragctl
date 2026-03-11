@@ -71,6 +71,98 @@ func TestHugoDeployTemplate(t *testing.T) {
 	}
 }
 
+func TestSanitizeTOMLValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "simple", input: "Alice", want: "Alice"},
+		{name: "with space", input: "Alice Smith", want: "Alice Smith"},
+		{name: "with apostrophe", input: "Alice's Brags", want: "Alice's Brags"},
+		{name: "escape quotes", input: `Alice "Ace" Smith`, want: `Alice \"Ace\" Smith`},
+		{name: "escape backslash", input: `C:\Users\Alice`, want: `C:\\Users\\Alice`},
+		{name: "escape newline", input: "Alice\nSmith", want: `Alice\nSmith`},
+		{name: "escape carriage return", input: "Alice\rSmith", want: `Alice\rSmith`},
+		{name: "replace tab", input: "Alice\tSmith", want: "Alice Smith"},
+		{name: "complex injection", input: "Alice\"\nmalicious = \"evil", want: `Alice\"\nmalicious = \"evil`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sanitizeTOMLValue(tt.input)
+			if got != tt.want {
+				t.Errorf("sanitizeTOMLValue(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDeployTemplateTOMLInjection(t *testing.T) {
+	dir := t.TempDir()
+	e := NewHugoEngine(&config.Config{})
+
+	// Try to inject TOML with malicious author/title
+	maliciousAuthor := "Alice\"\nmalicious_key = \"injected"
+	maliciousTitle := "Site\"\n[evil]\ncommand = \"rm -rf /\""
+
+	dst := filepath.Join(dir, "hugo.toml")
+	if err := e.deployTemplate("templates/hugo/hugo.toml", dst, maliciousAuthor, maliciousTitle); err != nil {
+		t.Fatalf("deployTemplate: %v", err)
+	}
+
+	data, err := os.ReadFile(dst) //nolint:gosec // test file
+	if err != nil {
+		t.Fatalf("read deployed file: %v", err)
+	}
+
+	content := string(data)
+
+	// Verify the values are properly escaped (quotes and newlines)
+	if !strings.Contains(content, `\"`) {
+		t.Error("quotes not escaped in TOML output")
+	}
+	if !strings.Contains(content, `\n`) {
+		t.Error("newlines not escaped in TOML output")
+	}
+
+	// Verify the malicious content appears as escaped string data, not TOML structure
+	// The escaped version should be inside a quoted string
+	escapedAuthor := sanitizeTOMLValue(maliciousAuthor)
+	if !strings.Contains(content, escapedAuthor) {
+		t.Error("author not properly escaped in output")
+	}
+	escapedTitle := sanitizeTOMLValue(maliciousTitle)
+	if !strings.Contains(content, escapedTitle) {
+		t.Error("title not properly escaped in output")
+	}
+
+	// Verify there's still only one author and title assignment (no injection)
+	if strings.Count(content, `author = "`) != 1 {
+		t.Error("author field appears multiple times (TOML injection may have succeeded)")
+	}
+	if strings.Count(content, `title = "`) != 1 {
+		t.Error("title field appears multiple times (TOML injection may have succeeded)")
+	}
+
+	// Verify no standalone malicious keys exist (they should be inside escaped strings)
+	// Look for the pattern of a TOML key assignment outside of quotes
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Skip comments and the legitimate author/title lines
+		if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "author = ") || strings.HasPrefix(trimmed, "title = ") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "malicious_key") {
+			t.Errorf("Found unescaped malicious_key as TOML key: %q", line)
+		}
+		if strings.HasPrefix(trimmed, "[evil]") {
+			t.Errorf("Found unescaped [evil] section header: %q", line)
+		}
+	}
+}
+
 func TestHugoDeployAboutMd(t *testing.T) {
 	dir := t.TempDir()
 	e := NewHugoEngine(&config.Config{})

@@ -1,7 +1,7 @@
 github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
-github.com/LeGambiArt/oauth2flow v0.1.0 h1:gBHeYg/a2Kq/s3LVN1j4Oq1+Hlgw3uYzWlb1xyoBygQ=
-github.com/LeGambiArt/oauth2flow v0.1.0/go.mod h1:+3JjnqbsY7CRai/Zr2fMmcAbVUV3oGnmCQLKkhzBPT4=
+github.com/LeGambiArt/oauth2flow v0.2.0 h1:7/3Igz5VTXRWysfK+tebGCjPTDe5TD4gd5rJjd9mD8M=
+github.com/LeGambiArt/oauth2flow v0.2.0/go.mod h1:+3JjnqbsY7CRai/Zr2fMmcAbVUV3oGnmCQLKkhzBPT4=
 github.com/MakeNowJust/heredoc v1.0.0 h1:cXCdzVdstXyiTqTvfqk9SDHpKNjxuom+DOlyEeQ4pzQ=
 github.com/MakeNowJust/heredoc v1.0.0/go.mod h1:mG5amYoWBHf8vpLOuehzbGGw0EHxpZZ6lCpQ4fNJ8LE=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=

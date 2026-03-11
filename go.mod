@@ -4,7 +4,7 @@ go 1.24.3
 
 require (
 	github.com/BurntSushi/toml v1.6.0
-	github.com/LeGambiArt/oauth2flow v0.1.0
+	github.com/LeGambiArt/oauth2flow v0.2.0
 	github.com/charmbracelet/huh v1.0.0
 	github.com/charmbracelet/huh/spinner v0.0.0-20260223110133-9dc45e34a40b
 	github.com/charmbracelet/lipgloss v1.1.0

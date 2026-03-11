@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -67,13 +66,21 @@ func initCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 
+			// Validate site name to prevent path traversal
+			if err := config.ValidateSiteName(name); err != nil {
+				return fmt.Errorf("invalid site name: %w", err)
+			}
+
 			cfg, err := config.Load()
 			if err != nil {
 				return err
 			}
 
 			// Check if site already exists BEFORE prompting
-			sitePath := filepath.Join(config.SitesDir(), name)
+			sitePath, err := config.SitePath(name)
+			if err != nil {
+				return err
+			}
 			if _, err := os.Stat(sitePath); err == nil && !force {
 				return fmt.Errorf("site %q already exists at %s (use --force to re-initialize)", name, sitePath)
 			}

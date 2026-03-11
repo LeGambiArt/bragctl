@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/LeGambiArt/bragctl/internal/config"
 )
@@ -41,7 +40,11 @@ func (m *Manager) Create(ctx context.Context, opts InitOpts) (*Site, error) {
 		return nil, fmt.Errorf("unknown engine: %s", opts.Engine)
 	}
 
-	opts.Path = filepath.Join(config.SitesDir(), opts.Name)
+	safePath, err := config.SitePath(opts.Name)
+	if err != nil {
+		return nil, fmt.Errorf("invalid site name: %w", err)
+	}
+	opts.Path = safePath
 
 	// Check if site already exists
 	if _, err := os.Stat(opts.Path); err == nil {
@@ -74,7 +77,10 @@ func (m *Manager) Resolve(name string) (*Site, error) {
 		return nil, fmt.Errorf("no site specified and no default set; use bragctl list")
 	}
 
-	sitePath := filepath.Join(config.SitesDir(), name)
+	sitePath, err := config.SitePath(name)
+	if err != nil {
+		return nil, fmt.Errorf("invalid site name: %w", err)
+	}
 	cfg, err := loadConfig(sitePath)
 	if err != nil {
 		return nil, fmt.Errorf("site %q not found", name)

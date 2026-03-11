@@ -46,10 +46,30 @@ type contextData struct {
 	Title  string
 }
 
+// validateTemplateValue validates that a value is safe for text/template rendering.
+// It rejects values containing Go template delimiters to prevent template injection.
+func validateTemplateValue(value, fieldName string) error {
+	if strings.Contains(value, "{{") || strings.Contains(value, "}}") {
+		return fmt.Errorf("%s cannot contain template delimiters ({{ or }}): %q", fieldName, value)
+	}
+	return nil
+}
+
 // RenderContextTemplates renders all context.d templates into the site's
 // context.d/ directory. Disabled templates get .md.disabled extension.
 // Existing files are NOT overwritten — only missing files are created.
 func RenderContextTemplates(sitePath, author, engine, title string) error {
+	// Validate template inputs to prevent template injection
+	if err := validateTemplateValue(author, "author"); err != nil {
+		return err
+	}
+	if err := validateTemplateValue(engine, "engine"); err != nil {
+		return err
+	}
+	if err := validateTemplateValue(title, "title"); err != nil {
+		return err
+	}
+
 	ctxDir := filepath.Join(sitePath, "context.d")
 	if err := os.MkdirAll(ctxDir, 0o750); err != nil {
 		return fmt.Errorf("create context.d: %w", err)
@@ -259,6 +279,14 @@ type aiSpecData struct {
 }
 
 func renderAISpec(engineName, author string) (string, error) {
+	// Validate template inputs to prevent template injection
+	if err := validateTemplateValue(engineName, "engine"); err != nil {
+		return "", err
+	}
+	if err := validateTemplateValue(author, "author"); err != nil {
+		return "", err
+	}
+
 	tmplContent, err := aiSpecFS.ReadFile("templates/ai-spec.md")
 	if err != nil {
 		return "", fmt.Errorf("read embedded template: %w", err)

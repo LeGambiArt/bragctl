@@ -187,3 +187,109 @@ func contains(s, substr string) bool {
 	}
 	return false
 }
+
+func TestRenderContextTemplatesRejectsInjection(t *testing.T) {
+	dir := t.TempDir()
+
+	tests := []struct {
+		name   string
+		author string
+		engine string
+		title  string
+	}{
+		{name: "author injection", author: "Alice{{.}}", engine: "markdown", title: "My Site"},
+		{name: "engine injection", author: "Alice", engine: "{{printf \"%s\" \"injected\"}}", title: "My Site"},
+		{name: "title injection", author: "Alice", engine: "markdown", title: "Site{{.Title}}"},
+		{name: "closing brace", author: "Alice}}", engine: "markdown", title: "My Site"},
+		{name: "opening brace", author: "Alice", engine: "markdown", title: "{{My Site"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := RenderContextTemplates(dir, tt.author, tt.engine, tt.title)
+			if err == nil {
+				t.Errorf("RenderContextTemplates() succeeded with template injection attempt, should have failed")
+			}
+			if err != nil && !contains(err.Error(), "template delimiters") {
+				t.Errorf("RenderContextTemplates() error = %v, should mention template delimiters", err)
+			}
+		})
+	}
+}
+
+func TestRenderContextTemplatesAllowsValidInput(t *testing.T) {
+	dir := t.TempDir()
+
+	err := RenderContextTemplates(dir, "Alice", "markdown", "My Brag Document")
+	if err != nil {
+		t.Errorf("RenderContextTemplates() failed with valid input: %v", err)
+	}
+
+	// Verify files were created
+	ctxDir := filepath.Join(dir, "context.d")
+	entries, err := os.ReadDir(ctxDir)
+	if err != nil {
+		t.Fatalf("read context.d: %v", err)
+	}
+
+	if len(entries) == 0 {
+		t.Error("RenderContextTemplates() created no files")
+	}
+
+	// Verify at least one expected file exists
+	personaPath := filepath.Join(ctxDir, "persona.md")
+	if _, err := os.Stat(personaPath); err != nil {
+		t.Errorf("persona.md not created: %v", err)
+	}
+}
+
+func TestWriteContextRejectsTemplateInjection(t *testing.T) {
+	dir := t.TempDir()
+
+	tests := []struct {
+		name   string
+		author string
+		engine string
+	}{
+		{name: "author injection", author: "{{.}}", engine: "markdown"},
+		{name: "engine injection", author: "Alice", engine: "{{.Engine}}"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := WriteContext(Claude, dir, "test", tt.engine, tt.author)
+			if err == nil {
+				t.Errorf("WriteContext() succeeded with template injection attempt, should have failed")
+			}
+			if err != nil && !contains(err.Error(), "template delimiters") {
+				t.Errorf("WriteContext() error = %v, should mention template delimiters", err)
+			}
+		})
+	}
+}
+
+func TestValidateTemplateValue(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     string
+		fieldName string
+		wantErr   bool
+	}{
+		{name: "valid simple", value: "Alice", fieldName: "author", wantErr: false},
+		{name: "valid with space", value: "Alice Smith", fieldName: "author", wantErr: false},
+		{name: "valid with hyphen", value: "my-site", fieldName: "title", wantErr: false},
+		{name: "invalid opening braces", value: "{{.}}", fieldName: "author", wantErr: true},
+		{name: "invalid closing braces", value: "Alice}}", fieldName: "author", wantErr: true},
+		{name: "invalid template expr", value: "{{printf \"%s\" \"x\"}}", fieldName: "title", wantErr: true},
+		{name: "invalid partial", value: "Site {{", fieldName: "title", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateTemplateValue(tt.value, tt.fieldName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateTemplateValue(%q, %q) error = %v, wantErr %v", tt.value, tt.fieldName, err, tt.wantErr)
+			}
+		})
+	}
+}

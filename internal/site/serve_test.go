@@ -221,3 +221,147 @@ func TestStripFrontmatter(t *testing.T) {
 		})
 	}
 }
+
+func TestMarkdownServerXSSPrevention(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create site config
+	cfg := &Config{Title: "Test", Author: "Test", Engine: "markdown"}
+	if err := writeConfig(dir, cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create posts directory
+	postsDir := filepath.Join(dir, "posts")
+	if err := os.MkdirAll(postsDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a post with XSS attempts
+	xssPost := `# XSS Test
+
+<script>alert('xss')</script>
+
+<img src=x onerror="alert('xss')">
+
+<a href="javascript:alert('xss')">Click me</a>
+
+<div onclick="alert('xss')">Click me</div>
+
+<iframe src="javascript:alert('xss')"></iframe>
+`
+	if err := os.WriteFile(filepath.Join(postsDir, "xss-test.md"), []byte(xssPost), 0o644); err != nil { //nolint:gosec // test
+		t.Fatal(err)
+	}
+
+	srv := newMarkdownServer(dir)
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/xss-test.md") //nolint:gosec // test server
+	if err != nil {
+		t.Fatalf("GET xss-test.md: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(bodyBytes)
+
+	// Verify dangerous elements are stripped
+	dangerousPatterns := []string{
+		"<script",
+		"onerror=",
+		"javascript:",
+		"onclick=",
+		"<iframe",
+	}
+
+	for _, pattern := range dangerousPatterns {
+		if strings.Contains(body, pattern) {
+			t.Errorf("XSS prevention failed: response contains dangerous pattern %q", pattern)
+		}
+	}
+
+	// Verify the heading is preserved (sanitization doesn't break legitimate content)
+	if !strings.Contains(body, "XSS Test") {
+		t.Error("sanitization removed legitimate content")
+	}
+}
+
+func TestMarkdownServerSafeHTML(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create site config
+	cfg := &Config{Title: "Test", Author: "Test", Engine: "markdown"}
+	if err := writeConfig(dir, cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create posts directory
+	postsDir := filepath.Join(dir, "posts")
+	if err := os.MkdirAll(postsDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a post with safe markdown/HTML
+	safePost := `# Safe Content
+
+This is **bold** and *italic* text.
+
+[A link](https://example.com)
+
+- List item 1
+- List item 2
+
+` + "```" + `
+code block
+` + "```" + `
+
+> A blockquote
+
+| Table | Header |
+|-------|--------|
+| Cell  | Cell   |
+`
+	if err := os.WriteFile(filepath.Join(postsDir, "safe-test.md"), []byte(safePost), 0o644); err != nil { //nolint:gosec // test
+		t.Fatal(err)
+	}
+
+	srv := newMarkdownServer(dir)
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/safe-test.md") //nolint:gosec // test server
+	if err != nil {
+		t.Fatalf("GET safe-test.md: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(bodyBytes)
+
+	// Verify safe HTML elements survive sanitization
+	safePatterns := []string{
+		"<strong>bold</strong>",
+		"<em>italic</em>",
+		`<a href="https://example.com"`,
+		"<li>",
+		"<code>",
+		"<blockquote>",
+	}
+
+	for _, pattern := range safePatterns {
+		if !strings.Contains(body, pattern) {
+			t.Errorf("sanitization removed safe HTML: missing %q", pattern)
+		}
+	}
+
+	// Note: goldmark tables require the table extension which is not enabled by default.
+	// The test focuses on commonly used markdown elements that should survive sanitization.
+}

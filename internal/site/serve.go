@@ -9,8 +9,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/yuin/goldmark"
 )
+
+// htmlSanitizer allows standard user-generated content HTML while preventing XSS.
+// It permits safe elements (bold, italic, links, images, code blocks, tables, lists)
+// but strips scripts, style tags, event handlers, and other dangerous content.
+var htmlSanitizer = bluemonday.UGCPolicy()
 
 // markdownServer serves a bragctl markdown site with rendered HTML.
 type markdownServer struct {
@@ -105,8 +111,8 @@ func (s *markdownServer) servePost(w http.ResponseWriter, _ *http.Request, name 
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := postTmpl.Execute(w, map[string]template.HTML{
-		"Title":   template.HTML(template.HTMLEscapeString(strings.TrimSuffix(filepath.Base(name), ".md"))), //nolint:gosec // escaped
-		"Content": template.HTML(buf.String()),                                                              //nolint:gosec // rendered markdown
+		"Title":   template.HTML(template.HTMLEscapeString(strings.TrimSuffix(filepath.Base(name), ".md"))), //nolint:gosec // explicitly escaped
+		"Content": template.HTML(htmlSanitizer.SanitizeBytes(buf.Bytes())),                                  //nolint:gosec // sanitized with bluemonday
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

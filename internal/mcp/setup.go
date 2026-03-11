@@ -73,7 +73,7 @@ func writeJSON(path string, v any) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0o644) //nolint:gosec // config file
+	return os.WriteFile(path, data, 0o600)
 }
 
 func writeClaudeSettings(sitePath string) error {

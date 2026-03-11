@@ -63,9 +63,58 @@ func (c *Config) ResolveHugoCommand() (string, error) {
 	return "", fmt.Errorf("hugo not found: install Hugo or set [hugo] command in %s", Path())
 }
 
+// validateMCPCommand validates an MCP command string for security.
+// Allows bare names like "wtmcp" or absolute paths to wtmcp/bragctl binaries.
+func validateMCPCommand(cmd string) error {
+	if cmd == "" {
+		return fmt.Errorf("MCP command cannot be empty")
+	}
+
+	// Reject shell metacharacters
+	shellMetachars := ";|&$`()"
+	for _, c := range shellMetachars {
+		if strings.ContainsRune(cmd, c) {
+			return fmt.Errorf("MCP command cannot contain shell metacharacters: %q", cmd)
+		}
+	}
+
+	// If it's a path (contains /), must be absolute and allowlisted
+	if strings.Contains(cmd, "/") {
+		if !filepath.IsAbs(cmd) {
+			return fmt.Errorf("MCP command path must be absolute: %q", cmd)
+		}
+		base := filepath.Base(cmd)
+		if !strings.HasPrefix(base, "wtmcp") && !strings.HasPrefix(base, "bragctl") {
+			return fmt.Errorf("MCP command must be wtmcp or bragctl binary: %q", cmd)
+		}
+	} else if !strings.HasPrefix(cmd, "wtmcp") && !strings.HasPrefix(cmd, "bragctl") {
+		// Bare name - allowlist known safe prefixes
+		return fmt.Errorf("MCP command must be wtmcp or bragctl: %q", cmd)
+	}
+
+	return nil
+}
+
+// validateMCPArg validates a single MCP argument for security.
+func validateMCPArg(arg string) error {
+	// Reject shell metacharacters in arguments
+	shellMetachars := ";|&$`()"
+	for _, c := range shellMetachars {
+		if strings.ContainsRune(arg, c) {
+			return fmt.Errorf("MCP argument cannot contain shell metacharacters: %q", arg)
+		}
+	}
+	return nil
+}
+
 // MCPCommand returns the resolved wtmcp command.
+// If the configured command is invalid, warns and returns default.
 func (c *Config) MCPCommand() string {
 	if c.MCP.Command != "" {
+		if err := validateMCPCommand(c.MCP.Command); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: invalid MCP command (%v), using default\n", err)
+			return "wtmcp"
+		}
 		return c.MCP.Command
 	}
 	return "wtmcp"
@@ -81,9 +130,16 @@ func (c *Config) MCPWorkdir() string {
 
 // MCPArgs returns the full argument list for wtmcp,
 // including --workdir and any extra configured args.
+// Invalid args are skipped with a warning.
 func (c *Config) MCPArgs() []string {
 	args := []string{"--workdir", c.MCPWorkdir()}
-	args = append(args, c.MCP.Args...)
+	for _, arg := range c.MCP.Args {
+		if err := validateMCPArg(arg); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: skipping invalid MCP arg (%v)\n", err)
+			continue
+		}
+		args = append(args, arg)
+	}
 	return args
 }
 

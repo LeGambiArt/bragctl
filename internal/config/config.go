@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -107,6 +109,54 @@ func BaseDir() string {
 // SitesDir returns the directory where sites are stored.
 func SitesDir() string {
 	return filepath.Join(BaseDir(), "sites")
+}
+
+var siteNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
+
+// ValidateSiteName validates that a site name is safe to use in filesystem paths.
+// It rejects path traversal attempts, special directory names, and unsafe characters.
+func ValidateSiteName(name string) error {
+	if name == "" {
+		return fmt.Errorf("site name cannot be empty")
+	}
+	if name == "." || name == ".." {
+		return fmt.Errorf("site name cannot be '.' or '..'")
+	}
+	if strings.ContainsRune(name, 0) {
+		return fmt.Errorf("site name cannot contain null bytes")
+	}
+	if strings.ContainsAny(name, "/\\") {
+		return fmt.Errorf("site name cannot contain path separators")
+	}
+	if filepath.Base(name) != name {
+		return fmt.Errorf("invalid site name: %q contains path components", name)
+	}
+	if !siteNamePattern.MatchString(name) {
+		return fmt.Errorf("site name must start with alphanumeric and contain only alphanumeric, dots, hyphens, or underscores: %q", name)
+	}
+	return nil
+}
+
+// SitePath validates a site name and returns its full path under SitesDir().
+// Returns an error if the name is invalid or resolves outside SitesDir().
+func SitePath(name string) (string, error) {
+	if err := ValidateSiteName(name); err != nil {
+		return "", err
+	}
+
+	sitesDir := SitesDir()
+	sitePath := filepath.Join(sitesDir, name)
+
+	// Defense-in-depth: verify the resolved path is still under sitesDir
+	relPath, err := filepath.Rel(sitesDir, sitePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve site path: %w", err)
+	}
+	if strings.HasPrefix(relPath, ".."+string(filepath.Separator)) || relPath == ".." {
+		return "", fmt.Errorf("site path escapes sites directory: %q", name)
+	}
+
+	return sitePath, nil
 }
 
 // Path returns the path to the config file.

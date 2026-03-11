@@ -4,9 +4,11 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -276,8 +278,80 @@ func (h *HugoEngine) copyEmbedded(src, dst string) error {
 	return nil
 }
 
+var gitCommitPattern = regexp.MustCompile(`^[0-9a-f]{7,64}$`)
+
+// validateThemeURL validates that a theme repository URL is safe.
+// Only HTTPS URLs to public repositories are allowed.
+func validateThemeURL(rawURL string) error {
+	if rawURL == "" {
+		return fmt.Errorf("theme URL cannot be empty")
+	}
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// Require HTTPS scheme only
+	if u.Scheme != "https" {
+		return fmt.Errorf("theme URL must use https:// scheme, got %q", u.Scheme)
+	}
+
+	// Reject URLs with embedded credentials
+	if u.User != nil {
+		return fmt.Errorf("theme URL cannot contain credentials")
+	}
+
+	// Require a host
+	if u.Host == "" {
+		return fmt.Errorf("theme URL must have a host")
+	}
+
+	// Reject localhost and loopback addresses (SSRF prevention)
+	host := strings.ToLower(u.Hostname())
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" {
+		return fmt.Errorf("theme URL cannot use localhost")
+	}
+
+	// Reject private IP ranges (basic SSRF prevention)
+	if strings.HasPrefix(host, "10.") || strings.HasPrefix(host, "192.168.") ||
+		strings.HasPrefix(host, "172.16.") || strings.HasPrefix(host, "172.17.") ||
+		strings.HasPrefix(host, "172.18.") || strings.HasPrefix(host, "172.19.") ||
+		strings.HasPrefix(host, "172.20.") || strings.HasPrefix(host, "172.21.") ||
+		strings.HasPrefix(host, "172.22.") || strings.HasPrefix(host, "172.23.") ||
+		strings.HasPrefix(host, "172.24.") || strings.HasPrefix(host, "172.25.") ||
+		strings.HasPrefix(host, "172.26.") || strings.HasPrefix(host, "172.27.") ||
+		strings.HasPrefix(host, "172.28.") || strings.HasPrefix(host, "172.29.") ||
+		strings.HasPrefix(host, "172.30.") || strings.HasPrefix(host, "172.31.") {
+		return fmt.Errorf("theme URL cannot use private IP address")
+	}
+
+	// Reject non-standard ports (legitimate git hosting uses standard HTTPS port 443)
+	if u.Port() != "" {
+		return fmt.Errorf("theme URL cannot specify a custom port")
+	}
+
+	return nil
+}
+
+// validateThemeCommit validates that a commit string is a valid git SHA.
+func validateThemeCommit(commit string) error {
+	if commit == "" {
+		return fmt.Errorf("commit cannot be empty")
+	}
+	if !gitCommitPattern.MatchString(commit) {
+		return fmt.Errorf("commit must be a valid git SHA (7-64 hex characters): %q", commit)
+	}
+	return nil
+}
+
 func (h *HugoEngine) themeRepo() string {
 	if h.cfg.Hugo.ThemeRepo != "" {
+		// Validate custom theme repo
+		if err := validateThemeURL(h.cfg.Hugo.ThemeRepo); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: invalid theme_repo in config (%v), using default\n", err)
+			return defaultThemeRepo
+		}
 		return h.cfg.Hugo.ThemeRepo
 	}
 	return defaultThemeRepo
@@ -285,6 +359,11 @@ func (h *HugoEngine) themeRepo() string {
 
 func (h *HugoEngine) themeCommit() string {
 	if h.cfg.Hugo.ThemeCommit != "" {
+		// Validate custom theme commit
+		if err := validateThemeCommit(h.cfg.Hugo.ThemeCommit); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: invalid theme_commit in config (%v), using default\n", err)
+			return defaultThemeCommit
+		}
 		return h.cfg.Hugo.ThemeCommit
 	}
 	return defaultThemeCommit

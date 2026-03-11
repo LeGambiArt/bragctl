@@ -462,3 +462,100 @@ func TestHugoInit(t *testing.T) {
 		t.Errorf("Validate after Init: %v", err)
 	}
 }
+
+func TestValidateThemeURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		// Valid URLs
+		{name: "github https", url: "https://github.com/user/repo", wantErr: false},
+		{name: "gitlab https", url: "https://gitlab.com/org/theme.git", wantErr: false},
+		{name: "custom domain", url: "https://git.example.com/themes/hugo-book", wantErr: false},
+
+		// Invalid URLs
+		{name: "empty", url: "", wantErr: true},
+		{name: "http scheme", url: "http://github.com/user/repo", wantErr: true},
+		{name: "file scheme", url: "file:///etc/passwd", wantErr: true},
+		{name: "ssh scheme", url: "ssh://git@github.com/user/repo", wantErr: true},
+		{name: "git scheme", url: "git://github.com/user/repo.git", wantErr: true},
+		{name: "with credentials", url: "https://user:pass@github.com/repo", wantErr: true},
+		{name: "localhost", url: "https://localhost/repo", wantErr: true},
+		{name: "loopback ipv4", url: "https://127.0.0.1/repo", wantErr: true},
+		{name: "loopback ipv6", url: "https://[::1]/repo", wantErr: true},
+		{name: "private ip 10.x", url: "https://10.0.0.1/repo", wantErr: true},
+		{name: "private ip 192.168.x", url: "https://192.168.1.1/repo", wantErr: true},
+		{name: "private ip 172.16.x", url: "https://172.16.0.1/repo", wantErr: true},
+		{name: "private ip 172.31.x", url: "https://172.31.255.254/repo", wantErr: true},
+		{name: "custom port", url: "https://github.com:8443/repo", wantErr: true},
+		{name: "no host", url: "https:///repo", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateThemeURL(tt.url)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateThemeURL(%q) error = %v, wantErr %v", tt.url, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateThemeCommit(t *testing.T) {
+	tests := []struct {
+		name    string
+		commit  string
+		wantErr bool
+	}{
+		// Valid commits
+		{name: "short sha", commit: "abc1234", wantErr: false},
+		{name: "full sha", commit: "81a841c92d62f2ed8d9134b0b18623b8b2471661", wantErr: false},
+		{name: "40 char sha", commit: "0123456789abcdef0123456789abcdef01234567", wantErr: false},
+		{name: "64 char sha", commit: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", wantErr: false},
+
+		// Invalid commits
+		{name: "empty", commit: "", wantErr: true},
+		{name: "too short", commit: "abc123", wantErr: true},
+		{name: "too long", commit: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0", wantErr: true},
+		{name: "uppercase", commit: "ABC1234567", wantErr: true},
+		{name: "with spaces", commit: "abc 1234567", wantErr: true},
+		{name: "shell injection", commit: "; rm -rf /", wantErr: true},
+		{name: "git syntax", commit: "HEAD~1", wantErr: true},
+		{name: "branch name", commit: "main", wantErr: true},
+		{name: "special chars", commit: "abc@123!def", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateThemeCommit(tt.commit)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateThemeCommit(%q) error = %v, wantErr %v", tt.commit, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestThemeRepoValidation(t *testing.T) {
+	// Test that invalid theme URLs fall back to default
+	cfg := &config.Config{}
+	cfg.Hugo.ThemeRepo = "http://evil.com/malicious" // Invalid: not HTTPS
+	e := NewHugoEngine(cfg)
+
+	repo := e.themeRepo()
+	if repo != defaultThemeRepo {
+		t.Errorf("themeRepo() with invalid URL = %q, want default %q", repo, defaultThemeRepo)
+	}
+}
+
+func TestThemeCommitValidation(t *testing.T) {
+	// Test that invalid commits fall back to default
+	cfg := &config.Config{}
+	cfg.Hugo.ThemeCommit = "not-a-valid-sha" // Invalid commit
+	e := NewHugoEngine(cfg)
+
+	commit := e.themeCommit()
+	if commit != defaultThemeCommit {
+		t.Errorf("themeCommit() with invalid commit = %q, want default %q", commit, defaultThemeCommit)
+	}
+}

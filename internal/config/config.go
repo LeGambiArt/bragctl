@@ -93,11 +93,48 @@ func CredentialsDir(provider string) string {
 	return filepath.Join(BaseDir(), "credentials", provider)
 }
 
+// validateBragctlHome validates the BRAGCTL_HOME path for security.
+// It must be an absolute path and must not be in system directories.
+func validateBragctlHome(dir string) error {
+	if dir == "" {
+		return fmt.Errorf("BRAGCTL_HOME cannot be empty")
+	}
+
+	// Must be absolute path
+	if !filepath.IsAbs(dir) {
+		return fmt.Errorf("BRAGCTL_HOME must be an absolute path: %q", dir)
+	}
+
+	// Reject paths containing .. components (before cleaning)
+	if strings.Contains(dir, "..") {
+		return fmt.Errorf("BRAGCTL_HOME cannot contain '..' components: %q", dir)
+	}
+
+	// Clean the path for system directory checks
+	cleaned := filepath.Clean(dir)
+
+	// Reject system directories (prevent writing to sensitive locations)
+	systemDirs := []string{"/etc", "/usr", "/bin", "/sbin", "/var", "/dev", "/proc", "/sys", "/boot", "/lib", "/lib64"}
+	for _, sysDir := range systemDirs {
+		if cleaned == sysDir || strings.HasPrefix(cleaned, sysDir+"/") {
+			return fmt.Errorf("BRAGCTL_HOME cannot be in system directory %s: %q", sysDir, dir)
+		}
+	}
+
+	return nil
+}
+
 // BaseDir returns the bragctl base directory.
 // Uses BRAGCTL_HOME env var, falls back to ~/.bragctl.
+// If BRAGCTL_HOME is invalid, warns to stderr and uses default.
 func BaseDir() string {
 	if dir := os.Getenv("BRAGCTL_HOME"); dir != "" {
-		return dir
+		if err := validateBragctlHome(dir); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: invalid BRAGCTL_HOME (%v), using default\n", err)
+			// Fall through to default
+		} else {
+			return dir
+		}
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -96,5 +97,108 @@ func TestSitePath(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestValidateBragctlHome(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		wantErr bool
+	}{
+		// Valid paths (absolute, not in system dirs)
+		{name: "user home subdir", path: "/home/user/.bragctl", wantErr: false},
+		{name: "user home custom", path: "/home/user/brag", wantErr: false},
+		{name: "tmp directory", path: "/tmp/bragctl", wantErr: false},
+		{name: "opt directory", path: "/opt/bragctl", wantErr: false},
+
+		// Invalid paths
+		{name: "empty", path: "", wantErr: true},
+		{name: "relative path", path: "bragctl", wantErr: true},
+		{name: "relative with dots", path: "../bragctl", wantErr: true},
+		{name: "dot current", path: ".", wantErr: true},
+		{name: "etc directory", path: "/etc/bragctl", wantErr: true},
+		{name: "etc exact", path: "/etc", wantErr: true},
+		{name: "usr directory", path: "/usr/bragctl", wantErr: true},
+		{name: "var directory", path: "/var/bragctl", wantErr: true},
+		{name: "bin directory", path: "/bin/bragctl", wantErr: true},
+		{name: "sbin directory", path: "/sbin/bragctl", wantErr: true},
+		{name: "dev directory", path: "/dev/bragctl", wantErr: true},
+		{name: "proc directory", path: "/proc/bragctl", wantErr: true},
+		{name: "sys directory", path: "/sys/bragctl", wantErr: true},
+		{name: "boot directory", path: "/boot/bragctl", wantErr: true},
+		{name: "lib directory", path: "/lib/bragctl", wantErr: true},
+		{name: "lib64 directory", path: "/lib64/bragctl", wantErr: true},
+		{name: "with dot-dot component", path: "/home/user/../etc/bragctl", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBragctlHome(tt.path)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateBragctlHome(%q) error = %v, wantErr %v", tt.path, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBaseDirWithInvalidBRAGCTL_HOME(t *testing.T) {
+	// Save original env
+	original := os.Getenv("BRAGCTL_HOME")
+	defer func() {
+		if original != "" {
+			_ = os.Setenv("BRAGCTL_HOME", original)
+		} else {
+			_ = os.Unsetenv("BRAGCTL_HOME")
+		}
+	}()
+
+	// Test with invalid BRAGCTL_HOME - should fall back to default
+	testCases := []string{
+		"/etc/bragctl",      // System directory
+		"relative/path",     // Relative path
+		"/home/user/../etc", // Contains ..
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc, func(t *testing.T) {
+			_ = os.Setenv("BRAGCTL_HOME", tc)
+			baseDir := BaseDir()
+
+			// Should not return the invalid path
+			if baseDir == tc {
+				t.Errorf("BaseDir() returned invalid BRAGCTL_HOME %q, should have used default", tc)
+			}
+
+			// Should return the default path
+			home, err := os.UserHomeDir()
+			if err == nil {
+				expectedDefault := filepath.Join(home, ".bragctl")
+				if baseDir != expectedDefault {
+					t.Errorf("BaseDir() = %q, want default %q", baseDir, expectedDefault)
+				}
+			}
+		})
+	}
+}
+
+func TestBaseDirWithValidBRAGCTL_HOME(t *testing.T) {
+	// Save original env
+	original := os.Getenv("BRAGCTL_HOME")
+	defer func() {
+		if original != "" {
+			_ = os.Setenv("BRAGCTL_HOME", original)
+		} else {
+			_ = os.Unsetenv("BRAGCTL_HOME")
+		}
+	}()
+
+	// Test with valid BRAGCTL_HOME - should use it
+	validPath := "/tmp/test-bragctl"
+	_ = os.Setenv("BRAGCTL_HOME", validPath)
+	baseDir := BaseDir()
+
+	if baseDir != validPath {
+		t.Errorf("BaseDir() = %q, want %q", baseDir, validPath)
 	}
 }
